@@ -103,7 +103,7 @@ def main():
             miscon_stack.pop()  # Remove the question from the stack
 
             if miscon_stack:
-                print("Let's go back to the earlier question.")
+                print("Let's go back to the earlier question.\n")
             else:
                 print("Well done, you've completed all questions!")
         else:
