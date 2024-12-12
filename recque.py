@@ -110,8 +110,8 @@ def main():
             print("That's incorrect.")
 
             # Generate a simpler question
-            simpler_question = generate_question(skill, current_question, response)
-            print("Let's simplify the question.")
+            simpler_question = generate_question(skill, current_question, answers[response-1])
+            print("Let's simplify the question.\n")
             miscon_stack.append(simpler_question)
 
 if __name__ == "__main__":
