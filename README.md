@@ -15,7 +15,10 @@ And it only asks questions about basic math operations.
 
 # Trace output
 ```
-Question: In the expression 6 + 3 * 2 - 4, what is the correct order of evaluation that leads to the final result? Consider the standard precedence rules for addition, subtraction, and multiplication, as well as the left-to-right associativity for addition and subtraction. Choose the evaluation order that results in the correct final outcome.
+Question: In the expression 6 + 3 * 2 - 4, what is the correct order of evaluation that leads
+to the final result? Consider the standard precedence rules for addition, subtraction, and
+multiplication, as well as the left-to-right associativity for addition and subtraction.
+Choose the evaluation order that results in the correct final outcome.
 
 (1) First evaluate 6 + 3, then 9 * 2, and finally 18 - 4.
 (2) First evaluate 3 * 2, then 6 + 6, and finally 12 - 4.
@@ -27,7 +30,8 @@ Enter a number: 1
 That's incorrect :|
 >> Let's try another question.
 
-Question: Consider the expression 5 + 4 * 2. Which operation should be performed first to ensure the correct order of evaluation?
+Question: Consider the expression 5 + 4 * 2. Which operation should be performed first to
+ensure the correct order of evaluation?
 
 (1) Perform operations in the order they appear from left to right.
 (2) Perform 5 + 4 first, then multiply the result by 2.
@@ -39,7 +43,8 @@ Enter a number: 2
 That's incorrect :|
 >> Let's try another question.
 
-Question: Think about the expression 8 - 3 * 2. If you remember that multiplication is like a strong current in a river, should you swim with it first before trying to control where you go?
+Question: Think about the expression 8 - 3 * 2. If you remember that multiplication is like
+a strong current in a river, should you swim with it first before trying to control where you go?
 
 (1) Subtract 8 and 3 first, then multiply the result by 2.
 (2) The order doesn't matter, as long as all operations are done.
@@ -51,7 +56,8 @@ Enter a number: 4
 Correct! :)
 >> Let's go back to the earlier question.
 
-Question: Consider the expression 5 + 4 * 2. Which operation should be performed first to ensure the correct order of evaluation?
+Question: Consider the expression 5 + 4 * 2. Which operation should be performed first to
+ensure the correct order of evaluation?
 
 (1) Perform 5 + 4 first, then multiply the result by 2. (incorrect)
 (2) Add 5 and 4 together, ignoring multiplication precedence.
@@ -63,7 +69,10 @@ Enter a number: 3
 Correct! :)
 >> Let's go back to the earlier question.
 
-Question: In the expression 6 + 3 * 2 - 4, what is the correct order of evaluation that leads to the final result? Consider the standard precedence rules for addition, subtraction, and multiplication, as well as the left-to-right associativity for addition and subtraction. Choose the evaluation order that results in the correct final outcome.
+Question: In the expression 6 + 3 * 2 - 4, what is the correct order of evaluation that leads
+to the final result? Consider the standard precedence rules for addition, subtraction, and
+multiplication, as well as the left-to-right associativity for addition and subtraction.
+Choose the evaluation order that results in the correct final outcome.
 
 (1) First evaluate 3 * 2, then 6 + 6, and finally 12 - 4.
 (2) First evaluate 6 + 3, then 9 * 2, and finally 18 - 4. (incorrect)
