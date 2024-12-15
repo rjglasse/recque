@@ -11,10 +11,10 @@ key = os.getenv("OPENAI_API_KEY")
 RED = '\033[31m'
 GREEN = '\033[32m'
 MAGENTA = '\033[35m'
-RESET = '\033[0m' # called to return to standard terminal text color
+RESET = '\033[0m'
 
-good_question = """The question should be multiple choice.
-    There should be one correct answer.
+# Common prompts for generating questions
+good_question = """The question should be multiple choice. There should be one correct answer.
     Ideally there should be three or more answers, but if the question is binary in nature, then two answers is ok. 
     Each answer should be unique and plausible. 
     Do not include the answer alternative numeric index like 1), or letter like A) of the answer in the question.
@@ -29,6 +29,7 @@ good_response = """The question should be formatted as a JSON object with three 
     The correct_answer field should be a string. 
     The incorrect_answers field should be a list of strings."""
 
+# Generate a question based on a skill (with optional prior question and answer)
 def generate_question(skill, prior_question=None, prior_answer=None):
     # construct prompt
     if prior_question:
@@ -42,7 +43,7 @@ def generate_question(skill, prior_question=None, prior_answer=None):
             It should be indepth, contain multiple concepts and use examples to test the learner's understanding of the skill."""
         prompt += good_question + good_format + good_response
     
-    # call chat completion
+    # Call chat completion endpoint
     completion = client.chat.completions.create(
         model="gpt-4o",
         messages=[
@@ -55,11 +56,12 @@ def generate_question(skill, prior_question=None, prior_answer=None):
             }
         ]
     )
+
     # Exract JSON string from completion
     json_string = completion.choices[0].message.content.strip().strip("```json").strip("```")
     response = json.loads(json_string)
 
-    # build response
+    # Build response dictionary
     question_text = response["question_text"]
     correct_answer = response["correct_answer"]
     incorrect_answers = response["incorrect_answers"]
@@ -119,7 +121,6 @@ def main():
             # Mark incorrect choice with read text for current_question
             to_mark = current_question["incorrect_answers"].index(answers[response-1])            
             current_question["incorrect_answers"][to_mark] = f"{RED}{current_question["incorrect_answers"][to_mark]} (incorrect){RESET}"
-
 
             # Generate a simpler question
             simpler_question = generate_question(skill, current_question, answers[response-1])
