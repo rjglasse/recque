@@ -1,8 +1,10 @@
 import random
-from openai import OpenAI
 import os
 import sys
 import json
+import textwrap
+import string
+from openai import OpenAI
 
 # AI Stuff
 client = OpenAI()
@@ -13,6 +15,11 @@ RED = '\033[31m'
 GREEN = '\033[32m'
 MAGENTA = '\033[35m'
 RESET = '\033[0m'
+
+# Handling text wrapping for terminal display
+def wrap_text(text, width=120):
+    wrapped = textwrap.fill(text, width=width)
+    return wrapped
 
 # Common prompts for generating questions
 good_question = """The question should be multiple choice. There should be one correct answer.
@@ -70,6 +77,9 @@ def generate_question(skill, prior_question=None, prior_answer=None, variation_q
     question_text = response["question_text"]
     correct_answer = response["correct_answer"]
     incorrect_answers = response["incorrect_answers"]
+
+    # TODO: verify that the correct answer is the correct answer, otherwise re-prompt for a new question 3 times
+
     return {"question_text": question_text, "correct_answer": correct_answer, "incorrect_answers": incorrect_answers}
 
 #  Get answers with shuffled order
@@ -82,6 +92,7 @@ def shuffle_answers(current_question):
 def judge(question, response):
     return question["correct_answer"] == response
 
+# Generate a skillmap for a topic
 def generate_skillmap(topic="basic math"):
     # construct prompt
     prompt = f"""Generate a list of skills for the topic: {topic}. 
@@ -114,11 +125,10 @@ def main():
     # Establish topic and generate skillmap
     topic = sys.argv[1] if len(sys.argv) > 1 else "order of evaluation in maths"
     skillmap = generate_skillmap(topic)
-    current_skill = 0
 
     for skill in skillmap:
         # Pick skill and generate initial question
-        print(f"\n{MAGENTA}{skill}{RESET}")
+        print(f"\n{MAGENTA}# {string.capwords(skill)}{RESET}")
         original_question = generate_question(topic + ". " + skill)
 
         # Initialize stack
@@ -128,7 +138,8 @@ def main():
         while miscon_stack:
             # Display the current question in the stack
             current_question = miscon_stack[-1]
-            print(f"\n{MAGENTA}Question{RESET}: {current_question["question_text"]}\n")
+            print()
+            print(wrap_text(f"{MAGENTA}Question{RESET}: {current_question["question_text"]}"), "\n")
             
             # Display answers
             answers = shuffle_answers(current_question)
@@ -138,7 +149,7 @@ def main():
             # Get response
             while True:
                 try:
-                    response = int(input("\nEnter a number: ").strip())
+                    response = int(input(f"\n{MAGENTA}Enter a number: {RESET}").strip())
                     if 1 <= response <= len(answers):
                         break
                     else:
@@ -158,16 +169,19 @@ def main():
 
                     # Get user input on what to do next, another question, or next skill
                     while True:
-                        next_action = input(f"{MAGENTA}Do you want to (1) answer another question, or (2) move on to the next skill? (1 or 2): {RESET}").strip().lower()
+                        next_action = input(f"{MAGENTA}Do you want to (1) answer another question, (2) move on to the next skill, or (3) exit?: {RESET}").strip().lower()
                         if next_action == "1":
-                            print(f"\n{MAGENTA}{skill}{RESET}\n")
+                            print(f"\n{MAGENTA}{skill}{RESET}")
                             next_question = generate_question(topic + ". " + skill, current_question, variation_question=True)
                             miscon_stack.append(next_question)
                             break
                         elif next_action == "2":
-                            break                               
+                            break
+                        elif next_action == "3":
+                            print(f"\n{MAGENTA}Goodbye and have a nice day!{RESET}\n")
+                            sys.exit()          
                         else:
-                            print(f"{RED}Please enter '1' or '2'.{RESET}")
+                            print(f"{RED}Please enter '1', '2' or '3'.{RESET}")
             else:
                 print(f"\n{RED}That's incorrect :|{RESET}")
 
