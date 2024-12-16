@@ -1,6 +1,7 @@
 import random
 from openai import OpenAI
 import os
+import sys
 import json
 
 # AI Stuff
@@ -30,9 +31,13 @@ good_response = """The question should be formatted as a JSON object with three 
     The incorrect_answers field should be a list of strings."""
 
 # Generate a question based on a skill (with optional prior question and answer)
-def generate_question(skill, prior_question=None, prior_answer=None):
+def generate_question(skill, prior_question=None, prior_answer=None, variation_question=False):
     # construct prompt
-    if prior_question:
+    if variation_question:
+        prompt = f"""Generate a new question about {skill} that is a good variation of the previous question so they can get more practice: {prior_question}.
+            It should be indepth, contain multiple concepts and use examples to test the learner's understanding of the skill."""
+        prompt += good_question + good_format + good_response
+    elif prior_question:
         prompt = f"""Generate a simpler question about {skill} based on the question: {prior_question}. 
             The learner answered: {prior_answer}. This was incorrect and shows they do not understand all the concepts.
             Try to isolate the misconception based on the {prior_answer} and formulate a new question to help explain the misconception. 
@@ -77,55 +82,103 @@ def shuffle_answers(current_question):
 def judge(question, response):
     return question["correct_answer"] == response
 
+def generate_skillmap(topic="basic math"):
+    # construct prompt
+    prompt = f"""Generate a list of skills for the topic: {topic}. 
+        The list of skills should contain 3 concepts in a natural progression that are important to understand the topic.
+        The response should only be the skills and no other additional information.
+        There is no need to provide an index of skill, such as a number, dash or other characters."""
+
+    # Call chat completion endpoint
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system",
+            "content": f"You are a subject expert in {topic}."
+            },
+            {
+                "role": "user",
+                "content": f"{prompt}"
+            }
+        ]
+    )
+
+    # Exract JSON string from completion
+    json_string = completion.choices[0].message.content.strip().strip("```json").strip("```")
+    # response = json.loads(json_string)
+
+    skillmap = json_string.split("\n")
+    return skillmap
+
 def main():
-    # Static skill and initial question
-    skill = "order of evaluation for addition, subtraction and multiplication"
-    original_question = generate_question(skill)
+    # Establish topic and generate skillmap
+    topic = sys.argv[1] if len(sys.argv) > 1 else "order of evaluation in maths"
+    skillmap = generate_skillmap(topic)
+    current_skill = 0
 
-    # Initialize stack
-    miscon_stack = []
-    miscon_stack.append(original_question)
+    for skill in skillmap:
+        # Pick skill and generate initial question
+        print(f"\n{MAGENTA}{skill}{RESET}")
+        original_question = generate_question(topic + ". " + skill)
 
-    while miscon_stack:
-        # Display the current question in the stack
-        current_question = miscon_stack[-1]
-        print(f"\n{MAGENTA}Question{RESET}: {current_question["question_text"]}\n")
-        
-        # Display answers
-        answers = shuffle_answers(current_question)
-        for i in range(len(answers)):
-            print(f"{MAGENTA}({i+1}){RESET} {answers[i]}")
+        # Initialize stack
+        miscon_stack = []
+        miscon_stack.append(original_question)
 
-        # Get response
-        while True:
-            try:
-                response = int(input("\nEnter a number: ").strip())
-                if 1 <= response <= len(answers):
-                    break
+        while miscon_stack:
+            # Display the current question in the stack
+            current_question = miscon_stack[-1]
+            print(f"\n{MAGENTA}Question{RESET}: {current_question["question_text"]}\n")
+            
+            # Display answers
+            answers = shuffle_answers(current_question)
+            for i in range(len(answers)):
+                print(f"{MAGENTA}({i+1}){RESET} {answers[i]}")
+
+            # Get response
+            while True:
+                try:
+                    response = int(input("\nEnter a number: ").strip())
+                    if 1 <= response <= len(answers):
+                        break
+                    else:
+                        print(f"{RED}Please enter a number between 1 and {len(answers)}.{RESET}")
+                except ValueError:
+                    print(f"{RED}Invalid input. Please enter a number.{RESET}")
+
+            # Judge the response
+            if judge(current_question, answers[response-1]):
+                print(f"\n{GREEN}Correct! :){RESET}")
+                miscon_stack.pop()  # Remove the question from the stack
+
+                if miscon_stack:
+                    print(f"{GREEN}>> Let's go back to the earlier question.{RESET}")
                 else:
-                    print(f"{RED}Please enter a number between 1 and {len(answers)}.{RESET}")
-            except ValueError:
-                print(f"{RED}Invalid input. Please enter a number.{RESET}")
+                    print(f"{GREEN}Well done, you've answered the question!\n{RESET}")
 
-        # Judge the response
-        if judge(current_question, answers[response-1]):
-            print(f"\n{GREEN}Correct! :){RESET}")
-            miscon_stack.pop()  # Remove the question from the stack
-
-            if miscon_stack:
-                print(">> Let's go back to the earlier question.")
+                    # Get user input on what to do next, another question, or next skill
+                    while True:
+                        next_action = input(f"{MAGENTA}Do you want to (1) answer another question, or (2) move on to the next skill? (1 or 2): {RESET}").strip().lower()
+                        if next_action == "1":
+                            print(f"\n{MAGENTA}{skill}{RESET}\n")
+                            next_question = generate_question(topic + ". " + skill, current_question, variation_question=True)
+                            miscon_stack.append(next_question)
+                            break
+                        elif next_action == "2":
+                            break                               
+                        else:
+                            print(f"{RED}Please enter '1' or '2'.{RESET}")
             else:
-                print("Well done, you've completed all questions!\n")
-        else:
-            print(f"\n{RED}That's incorrect :|{RESET}")
-            # Mark incorrect choice with read text for current_question
-            to_mark = current_question["incorrect_answers"].index(answers[response-1])            
-            current_question["incorrect_answers"][to_mark] = f"{RED}{current_question["incorrect_answers"][to_mark]} (incorrect){RESET}"
+                print(f"\n{RED}That's incorrect :|{RESET}")
 
-            # Generate a simpler question
-            simpler_question = generate_question(skill, current_question, answers[response-1])
-            print(">> Let's try another question.")
-            miscon_stack.append(simpler_question)
+                # Mark incorrect choice with read text for current_question
+                to_mark = current_question["incorrect_answers"].index(answers[response-1])            
+                current_question["incorrect_answers"][to_mark] = f"{RED}{current_question["incorrect_answers"][to_mark]} (incorrect){RESET}"
+
+                # Generate a simpler question
+                simpler_question = generate_question(skill, current_question, answers[response-1])
+                print(f"{RED}>> Let's try another question.{RESET}")
+                miscon_stack.append(simpler_question)
 
 if __name__ == "__main__":
     main()
