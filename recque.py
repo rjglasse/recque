@@ -1,9 +1,10 @@
-import random
 import os
 import sys
+import random
 import json
 import textwrap
 import string
+import logging
 from openai import OpenAI
 
 # AI Stuff
@@ -15,6 +16,17 @@ RED = '\033[31m'
 GREEN = '\033[32m'
 MAGENTA = '\033[35m'
 RESET = '\033[0m'
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, 
+                    format="{asctime} - {levelname} - {message}\n", 
+                    style="{", 
+                    datefmt="%Y-%m-%d %H:%M",
+                    filename="api_calls.log",
+                    encoding="utf-8",
+                    filemode="a",
+)
+logging.info("Starting recque.py")
 
 # Handling text wrapping for terminal display
 def wrap_text(text, width=120):
@@ -56,29 +68,34 @@ def generate_question(skill, prior_question=None, prior_answer=None, variation_q
         prompt += good_question + good_format + good_response
     
     # Call chat completion endpoint
-    completion = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system",
-            "content": "You are a socratic teacher who only creates excellently pedagogical questions and never provides explanations."
-            },
-            {
-                "role": "user",
-                "content": f"{prompt}"
-            }
-        ]
-    )
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system",
+                "content": "You are a socratic teacher who only creates excellently pedagogical questions and never provides explanations."
+                },
+                {
+                    "role": "user",
+                    "content": f"{prompt}"
+                }
+            ]
+        )
 
-    # Exract JSON string from completion
-    json_string = completion.choices[0].message.content.strip().strip("```json").strip("```")
-    response = json.loads(json_string)
+        # Exract JSON string from completion
+        json_string = completion.choices[0].message.content.strip().strip("```json").strip("```")
+        logging.info(json_string)
+        response = json.loads(json_string)
 
-    # Build response dictionary
-    question_text = response["question_text"]
-    correct_answer = response["correct_answer"]
-    incorrect_answers = response["incorrect_answers"]
-
-    # TODO: verify that the correct answer is the correct answer, otherwise re-prompt for a new question 3 times
+        # Build response dictionary
+        question_text = response["question_text"]
+        correct_answer = response["correct_answer"]
+        incorrect_answers = response["incorrect_answers"]
+        # TODO: verify that the correct answer is the correct answer, otherwise re-prompt for a new question 3 times
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        print(f"{RED}Error: {e}{RESET}")
+        sys.exit()
 
     return {"question_text": question_text, "correct_answer": correct_answer, "incorrect_answers": incorrect_answers}
 
@@ -101,23 +118,27 @@ def generate_skillmap(topic="basic math"):
         There is no need to provide an index of skill, such as a number, dash or other characters."""
 
     # Call chat completion endpoint
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system",
-            "content": f"You are a subject expert in {topic}."
-            },
-            {
-                "role": "user",
-                "content": f"{prompt}"
-            }
-        ]
-    )
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system",
+                "content": f"You are a subject expert in {topic}."
+                },
+                {
+                    "role": "user",
+                    "content": f"{prompt}"
+                }
+            ]
+        )
 
-    # Exract JSON string from completion
-    json_string = completion.choices[0].message.content.strip().strip("```json").strip("```")
-    # response = json.loads(json_string)
-
+        # Exract JSON string from completion
+        json_string = completion.choices[0].message.content.strip().strip("```json").strip("```")
+        logging.info(json_string)
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        print(f"{RED}Error: {e}{RESET}")
+        sys.exit()
     skillmap = json_string.split("\n")
     return skillmap
 
