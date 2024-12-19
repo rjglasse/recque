@@ -6,6 +6,8 @@ import textwrap
 import string
 import logging
 
+from pydantic import BaseModel
+
 from openai import OpenAI
 
 # AI Stuff
@@ -33,32 +35,30 @@ def wrap_text(text, width=120):
     wrapped = textwrap.fill(text, width=width)
     return wrapped
 
-# Common prompts for generating questions
-good_question = """The question should be multiple choice. 
-    There should be only one correct answer.
-    Each answer should be unique and plausible. 
-    Do not include the answer alternative numeric index like 1), or letter like A) of the answer in the question."""
+# Data classes for structured output from API calls
+class SkillMap(BaseModel):
+    skills: list[str]
 
-good_format = """The question should be formated for a text-based 
-    terminal interface with appropriate indentation and newline characters."""
+class Question(BaseModel):
+    question_text: str
+    correct_answer: str
+    incorrect_answers: list[str]
 
-good_response = """The response should be formatted as a JSON object with three fields: 
-    question_text, correct_answer, and incorrect_answers. 
-    The question_text field should not contain any answer alternatives, just the question stem. 
-    The correct_answer field should be a string. 
-    The incorrect_answers field should be a list of strings."""
+class Review(BaseModel):
+    valid: bool
+    correct_answer: str
 
 # Generate a question based on a skill (with optional prior question and answer)
 def generate_question(skill, prior_question=None, prior_answer=None, variation_question=False):
     # construct prompt
     if variation_question:
         prompt = f"""Task:
-            Generate a new question about {skill} that is a good variation of the previous question so they can get more practice: {prior_question}.
+            Generate a new question about {skill} that is a more challenging variation of the previous question so they can get more practice: {prior_question}.
             It should be indepth, contain multiple concepts and use examples to test the learner's understanding of the skill.
-            
-            Instructions:
+            Ensure there is exactly one correct answer, verify that it is correct.
+            Provide at least two incorrect but plausible and realistic alternative answers.
+            There is no need to provide an index of answer, such as a number, letter, dash or other characters.
             """
-        prompt += good_question + good_format + good_response
     elif prior_question:
         prompt = f"""Task:
             Generate a simpler question about {skill} based on the question: {prior_question}. 
@@ -68,109 +68,87 @@ def generate_question(skill, prior_question=None, prior_answer=None, variation_q
             
             Instructions:
             """
-        prompt += good_question + good_format + good_response
     else:
         prompt = f"""Task:
-            Create an insightful and challenging multiple choice question in JSON format focused on this skill: {skill}. 
-            
-            Ensure there is exactly one correct answer, verify that is is correct.
-            Provide at least two incorrect but plausible answers. 
-            
-            The JSON object should have three fields:
-            question_text: A single question.
-            correct_answer: A single string with the correct answer to the question.
-            incorrect_answers: An array of strings for the incorrect answers.
-            
-            Respond only with the JSON object and no additional commentary.
+            Create an engaging, insightful and challenging multiple choice question that focuses on this skill: {skill}.
+            Ensure there is exactly one correct answer, verify that it is correct.
+            Provide at least two incorrect but plausible and realistic alternative answers.
+            There is no need to provide an index of answer, such as a number, letter, dash or other characters.
             """
-        # prompt += good_question + good_format + good_response
-    
     # Call chat completion endpoint
     try:
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
+        completion = client.beta.chat.completions.parse(
+            model = "gpt-4o",
+            messages = [
                 {
                     "role": "user",
                     "content": f"{prompt}"
                 }
-            ]
+            ],
+            response_format = Question,
         )
 
         # Exract JSON string from completion
-        json_string = completion.choices[0].message.content.strip().strip("```json").strip("```")
-        logging.info(json_string)
-        response = json.loads(json_string)
-
-        # Build response dictionary
-        question_text = response["question_text"]
-        correct_answer = response["correct_answer"]
-        incorrect_answers = response["incorrect_answers"]
-        
-        # Check if the question is valid
-        verify_question(response)
+        question = completion.choices[0].message.parsed
+        logging.info(question)
+        verify_question(question)
+        return question
 
     except Exception as e:
         logging.error(f"Error: {e}")
         print(f"{RED}Error: {e}{RESET}")
         sys.exit()
-
-    return {"question_text": question_text, "correct_answer": correct_answer, "incorrect_answers": incorrect_answers}
 
 # Verify that the question is valid
 def verify_question(question):    
     prompt = f"""Task:
         You are given a multiple-choice question, along with possible answers. Your goal is to determine if at least one of the provided answers is correct.
 
-        {question["question_text"]}
+        Question:
+        {question.question_text}
 
         Possible Answers:
-        {question["incorrect_answers"]} and {question["correct_answer"]}
+        {question.incorrect_answers} and {question.correct_answer}
 
         Instructions:
-        Solve the given question step by step, showing the intermediate steps if necessary.
-        Determine the correct answer.
-        Check if the correct answer matches one of the possible answers.
-
-        Response:
-        Return a JSON object with the following fields:
-        valid: true if the correct answer is found among the possible answers; otherwise, false.
-        correct_answer: A string containing the correct answer.
-        Only return the JSON object and no additional commentary.
+        - Solve the given question step by step, showing the intermediate steps if necessary.
+        - Determine the correct answer.
+        - Check if the correct answer matches one of the possible answers.
+        - If the correct answer is not among the possible answers, provide the correct answer.
     """
     try:
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
+        completion = client.beta.chat.completions.parse(
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user",
                     "content": f"{prompt}"
                 }
-            ]
+            ],
+            response_format=Review,
         )
 
         # Exract JSON string from completion
-        json_string = completion.choices[0].message.content.strip().strip("```json").strip("```")
-        logging.info(json_string)
-        response = json.loads(json_string)
-        # Repair question if no correct answer
-        if not response["valid"]:
-            logging.WARNING(f"Question had no correct answer; repairing question.")
-            question['correct_answer'] = response["correct_answer"]
+        review = completion.choices[0].message.parsed
+        logging.info(review)
+        # Repair question if no correct answer found
+        if not review.valid:
+            logging.warning(f"Question had no correct answer; repairing question.")
+            question.correct_answer = review.correct_answer
     except Exception as e:
         logging.error(f"Error: {e}")
         print(f"{RED}Error: {e}{RESET}")
         sys.exit()
 
 #  Get answers with shuffled order
-def shuffle_answers(current_question):
-    answers = [current_question["correct_answer"]] + current_question["incorrect_answers"]
+def shuffle_answers(question):
+    answers = [question.correct_answer] + question.incorrect_answers
     random.shuffle(answers)
     return answers
 
 # Judge answer for question
 def judge(question, response):
-    return question["correct_answer"] == response
+    return question.correct_answer == response
 
 # Generate a skillmap for a topic
 def generate_skillmap(topic="basic math"):
@@ -185,25 +163,25 @@ def generate_skillmap(topic="basic math"):
 
     # Call chat completion endpoint
     try:
-        completion = client.chat.completions.create(
+        completion = client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
                 {
                     "role": "user",
                     "content": f"{prompt}"
                 }
-            ]
+            ],
+            response_format=SkillMap,
         )
 
-        # Exract JSON string from completion
-        json_string = completion.choices[0].message.content.strip().strip("```json").strip("```")
-        logging.info(json_string)
+        # Exract list of skills from completion
+        skillmap = completion.choices[0].message.parsed
+        logging.info(skillmap)
+        return skillmap.skills
     except Exception as e:
         logging.error(f"Error: {e}")
         print(f"{RED}Error: {e}{RESET}")
         sys.exit()
-    skillmap = json_string.split("\n")
-    return skillmap
 
 def main():
     # Establish topic from user and generate skillmap
@@ -226,7 +204,7 @@ def main():
             # Display the current question in the stack
             current_question = miscon_stack[-1]
             print()
-            print(wrap_text(f"{MAGENTA}Question{RESET}: {current_question["question_text"]}"), "\n")
+            print(wrap_text(f"{MAGENTA}Question{RESET}: {current_question.question_text}"), "\n")
             
             # Display answers
             answers = shuffle_answers(current_question)
@@ -259,7 +237,7 @@ def main():
                         next_action = input(f"{MAGENTA}Do you want to (1) answer another question, (2) move on to the next skill, or (3) exit?: {RESET}").strip().lower()
                         if next_action == "1":
                             print(f"\n{MAGENTA}# {string.capwords(skill)}{RESET}")
-                            next_question = generate_question(topic + ". " + skill, current_question, variation_question=True)
+                            next_question = generate_question(skill, variation_question=True)
                             miscon_stack.append(next_question)
                             break
                         elif next_action == "2":
@@ -273,13 +251,14 @@ def main():
                 print(f"\n{RED}That's incorrect :|{RESET}")
 
                 # Mark incorrect choice with read text for current_question
-                to_mark = current_question["incorrect_answers"].index(answers[response-1])            
-                current_question["incorrect_answers"][to_mark] = f"{RED}{current_question["incorrect_answers"][to_mark]} (incorrect){RESET}"
+                to_mark = current_question.incorrect_answers.index(answers[response-1])            
+                current_question.incorrect_answers[to_mark] = f"{RED}{current_question.incorrect_answers[to_mark]} (incorrect){RESET}"
 
                 # Generate a simpler question
-                simpler_question = generate_question(skill, current_question["question_text"], answers[response-1])
+                simpler_question = generate_question(skill, current_question.question_text, answers[response-1])
                 print(f"{RED}>> Let's try another question.{RESET}")
                 miscon_stack.append(simpler_question)
+    print(f"\n{MAGENTA}Congratulations, all skills covered! Goodbye and have a nice day!{RESET}\n")
 
 if __name__ == "__main__":
     main()
