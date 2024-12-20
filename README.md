@@ -5,10 +5,15 @@ We begin with a multiple choice question ($Q0$) with three answering alternative
 ![Screenshot 2024-12-12 at 13 37 37](https://github.com/user-attachments/assets/8b60dc82-c913-4553-9f1a-84e96efb4e9f)
 
 # Usage
-This is a simple [implementation](https://github.com/rjglasse/recque/blob/main/recque.py) of the concept of RQ as a text-based interface. The only requirement is to have an `OPEN_AI_API_KEY` environment variable on your system with an active key. Running is as easy as:
+This is a simple [implementation](https://github.com/rjglasse/recque/blob/main/recque.py) of the concept of RQ as a text-based interface. The only requirements are to have an `OPEN_AI_API_KEY` environment variable on your system with an active key, and the list dependencies installed. Running is as easy as:
 
 ```bash
 $ python recque.py
 ```
 
 Provide a topic to get started. In the case of unexpected behaviour, consult the logfile.
+
+# Dependencies
+You will need to `pip install` before using:
+- `openai`
+- `pydantic`
