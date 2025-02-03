@@ -13,6 +13,7 @@ from openai import OpenAI
 # AI Stuff
 client = OpenAI()
 key = os.getenv("OPENAI_API_KEY")
+current_model = "o3-mini"
 
 # Colors for terminal text
 RED = '\033[31m'
@@ -78,7 +79,7 @@ def generate_question(skill, prior_question=None, prior_answer=None, variation_q
     # Call chat completion endpoint
     try:
         completion = client.beta.chat.completions.parse(
-            model = "gpt-4o",
+            model = current_model,            
             messages = [
                 {
                     "role": "user",
@@ -91,7 +92,7 @@ def generate_question(skill, prior_question=None, prior_answer=None, variation_q
         # Exract JSON string from completion
         question = completion.choices[0].message.parsed
         logging.info(question)
-        verify_question(question)
+        # verify_question(question)
         return question
 
     except Exception as e:
@@ -118,7 +119,7 @@ def verify_question(question):
     """
     try:
         completion = client.beta.chat.completions.parse(
-            model="gpt-4o",
+            model=current_model,
             messages=[
                 {
                     "role": "user",
@@ -164,7 +165,7 @@ def generate_skillmap(topic="basic math"):
     # Call chat completion endpoint
     try:
         completion = client.beta.chat.completions.parse(
-            model="gpt-4o-mini",
+            model=current_model,
             messages=[
                 {
                     "role": "user",
@@ -215,6 +216,9 @@ def main():
             while True:
                 try:
                     response = int(input(f"\n{MAGENTA}Enter a number: {RESET}").strip())
+                    if response == 0:
+                        print(f"\n{MAGENTA}Goodbye and have a nice day!{RESET}\n")
+                        sys.exit()
                     if 1 <= response <= len(answers):
                         break
                     else:
