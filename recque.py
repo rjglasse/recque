@@ -1,7 +1,6 @@
 import os
 import sys
 import random
-import json
 import textwrap
 import string
 import logging
@@ -13,7 +12,15 @@ from openai import OpenAI
 # AI Stuff
 client = OpenAI()
 key = os.getenv("OPENAI_API_KEY")
-current_model = "o3-mini"
+default_model = "gpt-4o-mini"
+current_model = sys.argv[1] if len(sys.argv) > 1 else default_model
+
+# List of valid models
+valid_models = ["gpt-4o", "gpt-4o-mini", "o3-mini"]  # Add your valid model names here
+
+if current_model not in valid_models:
+    print(f"Invalid model name: {current_model}. Using default model: {default_model}")
+    current_model = default_model
 
 # Colors for terminal text
 RED = '\033[31m'
@@ -32,7 +39,7 @@ logging.basicConfig(level=logging.INFO,
 logging.info("Starting recque.py")
 
 # Handling text wrapping for terminal display
-def wrap_text(text, width=120):
+def wrap_text(text, width=80):
     wrapped = textwrap.fill(text, width=width)
     return wrapped
 
@@ -49,32 +56,39 @@ class Review(BaseModel):
     valid: bool
     correct_answer: str
 
+prompt_rules = """Keep the question under 50 words.
+    Provide at least two incorrect but plausible and realistic alternative answers.
+    The alternative answers ideally should target common misconceptions. 
+    Each answer should be no more than 20 words.
+    Ensure there is exactly one correct answer, verify that it is correct.
+    Ensure it is not obvious which answer is correct; in terms of being longer or containing more information.
+    Do not provide a prefix for the index of each alternative answer, such as a number, letter, dash or other characters.
+    """
+
 # Generate a question based on a skill (with optional prior question and answer)
 def generate_question(skill, prior_question=None, prior_answer=None, variation_question=False):
     # construct prompt
     if variation_question:
         prompt = f"""Task:
-            Generate a new question about {skill} that is a more challenging variation of the previous question so they can get more practice: {prior_question}.
-            It should be indepth, contain multiple concepts and use examples to test the learner's understanding of the skill.
-            Ensure there is exactly one correct answer, verify that it is correct.
-            Provide at least two incorrect but plausible and realistic alternative answers.
-            There is no need to provide an index of answer, such as a number, letter, dash or other characters.
+            Generate a new question about {skill} that is a more challenging variation of the previous question.
+            They answered this correctly: {prior_question}.
+            
+            Make sure you follow these rules: {prompt_rules}
             """
     elif prior_question:
         prompt = f"""Task:
-            Generate a simpler question about {skill} based on the question: {prior_question}. 
+            Generate a simpler question about {skill} based on the question that was incorrectly answered: {prior_question}. 
             The learner answered: {prior_answer}. This was incorrect and shows they do not understand all the concepts.
-            Try to isolate the misconception based on the {prior_answer} and formulate a new question to help explain the misconception. 
-            Feel free to use rich examples and illustrative metaphors to help the learner understand.
+            Try use their misconception and formulate a new related question to help explain the misconception. 
+            Perhaps try to break down the original question into smaller parts that help simplify it.
             
-            Instructions:
+            Make sure you follow these rules: {prompt_rules}
             """
     else:
         prompt = f"""Task:
             Create an engaging, insightful and challenging multiple choice question that focuses on this skill: {skill}.
-            Ensure there is exactly one correct answer, verify that it is correct.
-            Provide at least two incorrect but plausible and realistic alternative answers.
-            There is no need to provide an index of answer, such as a number, letter, dash or other characters.
+            
+            Make sure you follow these rules: {prompt_rules}
             """
     # Call chat completion endpoint
     try:
@@ -186,6 +200,7 @@ def generate_skillmap(topic="basic math"):
 
 def main():
     # Establish topic from user and generate skillmap
+    # print("\033[H\033[2J", end="\n")
     topic = input(f"{MAGENTA}Enter a topic: {RESET}").strip()
     if not topic:
         topic = "order of evaluation in maths"
@@ -205,12 +220,13 @@ def main():
             # Display the current question in the stack
             current_question = miscon_stack[-1]
             print()
+            # print("\033[H\033[2J", end="\n")
             print(wrap_text(f"{MAGENTA}Question{RESET}: {current_question.question_text}"), "\n")
             
             # Display answers
             answers = shuffle_answers(current_question)
             for i in range(len(answers)):
-                print(f"{MAGENTA}({i+1}){RESET} {answers[i]}")
+                print(wrap_text(f"{MAGENTA}({i+1}){RESET} {answers[i]}"), "\n")
 
             # Get response
             while True:
@@ -238,15 +254,15 @@ def main():
 
                     # Get user input on what to do next, another question, or next skill
                     while True:
-                        next_action = input(f"{MAGENTA}Do you want to (1) answer another question, (2) move on to the next skill, or (3) exit?: {RESET}").strip().lower()
+                        next_action = input(f"{MAGENTA}Do you want to (1) answer another question, (2) move on to the next skill, or (0) exit?: {RESET}").strip().lower()
                         if next_action == "1":
                             print(f"\n{MAGENTA}# {string.capwords(skill)}{RESET}")
-                            next_question = generate_question(skill, variation_question=True)
+                            next_question = generate_question(topic + ". " + skill, variation_question=True)
                             miscon_stack.append(next_question)
                             break
                         elif next_action == "2":
                             break
-                        elif next_action == "3":
+                        elif next_action == "0":
                             print(f"\n{MAGENTA}Goodbye and have a nice day!{RESET}\n")
                             sys.exit()          
                         else:
@@ -259,7 +275,7 @@ def main():
                 current_question.incorrect_answers[to_mark] = f"{RED}{current_question.incorrect_answers[to_mark]} (incorrect){RESET}"
 
                 # Generate a simpler question
-                simpler_question = generate_question(skill, current_question.question_text, answers[response-1])
+                simpler_question = generate_question(topic + ". " + skill, current_question.question_text, answers[response-1])
                 print(f"{RED}>> Let's try another question.{RESET}")
                 miscon_stack.append(simpler_question)
     print(f"\n{MAGENTA}Congratulations, all skills covered! Goodbye and have a nice day!{RESET}\n")
