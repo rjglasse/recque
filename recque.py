@@ -53,12 +53,15 @@ class Question(BaseModel):
     question_text: str
     correct_answer: str
     incorrect_answers: list[str]
+    has_been_displayed: bool  # New flag
 
 class Review(BaseModel):
     valid: bool
     correct_answer: str
 
-prompt_rules = """Keep the question under 100 words.
+# Rules for generating questions
+prompt_rules = """Keep the question about 100 words or less.
+    The question should be challenging, not just simple facts and recall.
     Provide at least two incorrect but plausible and realistic alternative answers.
     The alternative answers ideally should target common misconceptions. 
     Each answer should be no more than 20 words.
@@ -79,10 +82,11 @@ def generate_question(skill, prior_question=None, prior_answer=None, variation_q
             """
     elif prior_question:
         prompt = f"""Task:
-            Generate a much simpler question about {skill} based on the question that was incorrectly answered: {prior_question}. 
+            Generate a much less difficult question about {skill} based on some part of the question that was incorrectly answered: {prior_question}. 
             The learner answered: {prior_answer}. This was incorrect and shows they do not understand all the concepts.
+            First, think about the explanation that would be given to help the learner understand the correct answer.
             Try use their misconception and formulate a new related question to help explain the misconception. 
-            Try to break down the original question into smaller parts that help simplify it.
+            Try to break down the original question into easier concepts that help simplify it.
             
             Make sure you follow these rules: {prompt_rules}
             """
@@ -107,6 +111,7 @@ def generate_question(skill, prior_question=None, prior_answer=None, variation_q
 
         # Exract JSON string from completion
         question = completion.choices[0].message.parsed
+        question.has_been_displayed = False  # Set the flag to False for new questions
         logging.info(question)
         # verify_question(question)
         return question
@@ -247,7 +252,7 @@ def typewriter_print(text, delay=0.03):
     print()  # Add a newline at the end
 
 def main():
-    topic = input(f"{MAGENTA}Enter a topic: {RESET}").strip()
+    topic = input(f"{MAGENTA}What is the topic? {RESET}").strip()
     if not topic:
         topic = "order of evaluation in maths"
 
@@ -266,13 +271,20 @@ def main():
             # Display the current question in the stack
             current_question = miscon_stack[-1]
             print()
-            typewriter_print(wrap_text(f"{MAGENTA}Question{RESET}: {current_question.question_text}"))
+            if not current_question.has_been_displayed:
+                typewriter_print(wrap_text(f"{MAGENTA}Question{RESET}: {current_question.question_text}"))
+            else:
+                print(wrap_text(f"{MAGENTA}Question{RESET}: {current_question.question_text}"))
             print()
             
             # Display answers
             answers = shuffle_answers(current_question)
             for i in range(len(answers)):
-                typewriter_print(wrap_text(f"{MAGENTA}({i+1}){RESET} {answers[i]}") + "\n")
+                if not current_question.has_been_displayed:
+                    typewriter_print(wrap_text(f"{MAGENTA}({i+1}){RESET} {answers[i]}") + "\n")
+                else:
+                    print(wrap_text(f"{MAGENTA}({i+1}){RESET} {answers[i]}")  + "\n")
+            current_question.has_been_displayed = True
 
             # Get response
             while True:
