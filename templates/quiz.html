@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RecQue - Quiz</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 30px 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+        }
+        .quiz-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .answer-btn {
+            margin-bottom: 10px;
+            text-align: left;
+            white-space: normal;
+            padding: 15px;
+        }
+        .question-text {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+        .feedback {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .feedback.correct {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .feedback.incorrect {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .next-actions {
+            display: none;
+            margin-top: 20px;
+        }
+        .skill-badge {
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            display: inline-block;
+        }
+        .loading {
+            text-align: center;
+            padding: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Topic: <span id="topic-name"></span></h2>
+            <a href="/" class="btn btn-outline-secondary">Exit Quiz</a>
+        </div>
+        
+        <div class="quiz-container">
+            <div class="skill-badge badge bg-primary" id="current-skill"></div>
+            
+            <div id="loading" class="loading">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Generating question...</p>
+            </div>
+            
+            <div id="question-container" style="display:none;">
+                <div class="question-text" id="question-text"></div>
+                
+                <div id="answers-container"></div>
+                
+                <div id="feedback" class="feedback" style="display:none;"></div>
+                
+                <div id="next-actions" class="next-actions">
+                    <button id="next-skill-btn" class="btn btn-primary me-2">Next Skill</button>
+                    <button id="new-question-btn" class="btn btn-outline-primary">New Question</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Get query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        let topic = urlParams.get('topic');
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            loadQuestion();
+            document.getElementById('topic-name').textContent = '{{topic}}';
+        });
+        
+        function loadQuestion() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('question-container').style.display = 'none';
+            
+            fetch('/get_question')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('question-container').style.display = 'block';
+                    document.getElementById('current-skill').textContent = data.skill;
+                    
+                    // Set question text
+                    document.getElementById('question-text').textContent = data.question_text;
+                    
+                    // Create answer buttons
+                    const answersContainer = document.getElementById('answers-container');
+                    answersContainer.innerHTML = '';
+                    
+                    data.answers.forEach((answer, index) => {
+                        const btn = document.createElement('button');
+                        btn.className = 'btn btn-outline-secondary answer-btn w-100';
+                        btn.textContent = answer;
+                        btn.addEventListener('click', function() {
+                            checkAnswer(answer);
+                        });
+                        answersContainer.appendChild(btn);
+                    });
+                    
+                    // Hide feedback and next actions
+                    document.getElementById('feedback').style.display = 'none';
+                    document.getElementById('next-actions').style.display = 'none';
+                });
+        }
+        
+        function checkAnswer(selectedAnswer) {
+            // Disable all answer buttons
+            const buttons = document.querySelectorAll('.answer-btn');
+            buttons.forEach(btn => btn.disabled = true);
+            
+            const formData = new FormData();
+            formData.append('answer', selectedAnswer);
+            
+            fetch('/check_answer', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const feedback = document.getElementById('feedback');
+                feedback.style.display = 'block';
+                feedback.textContent = data.message;
+                
+                if (data.correct) {
+                    feedback.className = 'feedback correct';
+                    
+                    if (data.stack_empty) {
+                        document.getElementById('next-actions').style.display = 'block';
+                    } else {
+                        // Load previous question after a short delay
+                        setTimeout(() => loadQuestion(), 1500);
+                    }
+                } else {
+                    feedback.className = 'feedback incorrect';
+                    // Load simpler question after a short delay
+                    setTimeout(() => loadQuestion(), 1500);
+                }
+            });
+        }
+        
+        document.getElementById('next-skill-btn').addEventListener('click', function() {
+            const formData = new FormData();
+            formData.append('action', 'next_skill');
+            
+            fetch('/next_action', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.complete) {
+                    // Quiz completed, redirect to completion page
+                    alert(data.message);
+                    window.location.href = '/';
+                } else if (data.next_skill) {
+                    document.getElementById('current-skill').textContent = data.skill;
+                    loadQuestion();
+                }
+            });
+        });
+        
+        document.getElementById('new-question-btn').addEventListener('click', function() {
+            const formData = new FormData();
+            formData.append('action', 'new_question');
+            
+            fetch('/next_action', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.new_question) {
+                    loadQuestion();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

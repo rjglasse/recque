@@ -5,7 +5,6 @@ import textwrap
 import string
 import logging
 import threading
-import time
 
 from pydantic import BaseModel
 
@@ -53,15 +52,12 @@ class Question(BaseModel):
     question_text: str
     correct_answer: str
     incorrect_answers: list[str]
-    has_been_displayed: bool  # New flag
 
 class Review(BaseModel):
     valid: bool
     correct_answer: str
 
-# Rules for generating questions
-prompt_rules = """Keep the question about 100 words or less.
-    The question should be challenging, not just simple facts and recall.
+prompt_rules = """Keep the question under 50 words.
     Provide at least two incorrect but plausible and realistic alternative answers.
     The alternative answers ideally should target common misconceptions. 
     Each answer should be no more than 20 words.
@@ -82,11 +78,10 @@ def generate_question(skill, prior_question=None, prior_answer=None, variation_q
             """
     elif prior_question:
         prompt = f"""Task:
-            Generate a much less difficult question about {skill} based on some part of the question that was incorrectly answered: {prior_question}. 
+            Generate a simpler question about {skill} based on the question that was incorrectly answered: {prior_question}. 
             The learner answered: {prior_answer}. This was incorrect and shows they do not understand all the concepts.
-            First, think about the explanation that would be given to help the learner understand the correct answer.
             Try use their misconception and formulate a new related question to help explain the misconception. 
-            Try to break down the original question into easier concepts that help simplify it.
+            Perhaps try to break down the original question into smaller parts that help simplify it.
             
             Make sure you follow these rules: {prompt_rules}
             """
@@ -111,7 +106,6 @@ def generate_question(skill, prior_question=None, prior_answer=None, variation_q
 
         # Exract JSON string from completion
         question = completion.choices[0].message.parsed
-        question.has_been_displayed = False  # Set the flag to False for new questions
         logging.info(question)
         # verify_question(question)
         return question
@@ -206,9 +200,6 @@ def generate_skillmap(topic="basic math"):
         print(f"{RED}Error: {e}{RESET}")
         sys.exit()
 
-# Cache for prefetched questions
-prefetch_cache = {}
-
 def prefetch_questions(topic, skill, current_question):
     """
     Prefetches simpler questions for each incorrect answer in parallel.
@@ -226,11 +217,7 @@ def prefetch_questions(topic, skill, current_question):
 
     def generate_and_store(answer):
         """Generates a simpler question for a given incorrect answer and stores it."""
-        if answer in prefetch_cache:
-            simpler_question = prefetch_cache[answer]
-        else:
-            simpler_question = generate_question(topic + ". " + skill, current_question.question_text, answer)
-            prefetch_cache[answer] = simpler_question
+        simpler_question = generate_question(topic + ". " + skill, current_question.question_text, answer)
         prefetched_questions[answer] = simpler_question
 
     # Create a thread for each incorrect answer
@@ -245,14 +232,10 @@ def prefetch_questions(topic, skill, current_question):
 
     return prefetched_questions
 
-def typewriter_print(text, delay=0.03):
-    for char in text:
-        print(char, end="", flush=True)
-        time.sleep(delay)
-    print()  # Add a newline at the end
-
 def main():
-    topic = input(f"{MAGENTA}What is the topic? {RESET}").strip()
+    # Establish topic from user and generate skillmap
+    # print("\033[H\033[2J", end="\n")
+    topic = input(f"{MAGENTA}Enter a topic: {RESET}").strip()
     if not topic:
         topic = "order of evaluation in maths"
 
@@ -271,35 +254,21 @@ def main():
             # Display the current question in the stack
             current_question = miscon_stack[-1]
             print()
-            if not current_question.has_been_displayed:
-                typewriter_print(wrap_text(f"{MAGENTA}Question{RESET}: {current_question.question_text}"))
-            else:
-                print(wrap_text(f"{MAGENTA}Question{RESET}: {current_question.question_text}"))
-            print()
+            # print("\033[H\033[2J", end="\n")
+            print(wrap_text(f"{MAGENTA}Question{RESET}: {current_question.question_text}"), "\n")
             
             # Display answers
             answers = shuffle_answers(current_question)
             for i in range(len(answers)):
-                if not current_question.has_been_displayed:
-                    typewriter_print(wrap_text(f"{MAGENTA}({i+1}){RESET} {answers[i]}") + "\n")
-                else:
-                    print(wrap_text(f"{MAGENTA}({i+1}){RESET} {answers[i]}")  + "\n")
-            current_question.has_been_displayed = True
+                print(wrap_text(f"{MAGENTA}({i+1}){RESET} {answers[i]}"), "\n")
+
+            # Prefetch questions for incorrect answers
+            prefetched_questions = prefetch_questions(topic, skill, current_question)
 
             # Get response
             while True:
                 try:
-                    print(f"{MAGENTA}Enter a number: {RESET}", end="")
-                    
-                    # Prefetch questions for incorrect answers
-                    if current_question.question_text not in prefetch_cache:
-                        prefetched_questions = prefetch_questions(topic, skill, current_question)
-                        prefetch_cache[current_question.question_text] = prefetched_questions
-                    else:
-                        prefetched_questions = prefetch_cache[current_question.question_text]
-
-                    response = int(input().strip())
-                    
+                    response = int(input(f"\n{MAGENTA}Enter a number: {RESET}").strip())
                     if response == 0:
                         print(f"\n{MAGENTA}Goodbye and have a nice day!{RESET}\n")
                         sys.exit()
