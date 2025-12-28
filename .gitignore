@@ -1,1 +1,39 @@
+# Logs
 *.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Database
+data/*.db
+*.db
+
+# Environment
+.env
+.env.local
+
+# uv
+uv.lock
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,244 @@
+/* RecQue TUI Theme */
+
+/* Base colors matching original CLI: magenta, green, red */
+$primary: magenta;
+$success: green;
+$error: red;
+$surface: $surface;
+$background: $background;
+
+/* App-wide styles */
+Screen {
+    background: $background;
+}
+
+/* Header styling */
+#header {
+    dock: top;
+    height: 3;
+    background: $primary;
+    color: $text;
+    text-align: center;
+    padding: 1;
+}
+
+/* Footer styling */
+#footer {
+    dock: bottom;
+    height: 1;
+    background: $surface;
+}
+
+/* Main content area */
+#content {
+    padding: 1 2;
+}
+
+/* Topic input */
+.topic-input {
+    width: 100%;
+    margin: 1 0;
+}
+
+/* Question card */
+.question-card {
+    border: solid $primary;
+    padding: 1 2;
+    margin: 1 0;
+    background: $surface;
+}
+
+.question-text {
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+/* Answer buttons */
+.answer-button {
+    width: 100%;
+    margin: 0 0 1 0;
+    min-height: 3;
+}
+
+.answer-button:hover {
+    background: $primary 20%;
+}
+
+.answer-button.correct {
+    background: $success 30%;
+    border: solid $success;
+}
+
+.answer-button.incorrect {
+    background: $error 30%;
+    border: solid $error;
+}
+
+.answer-button.marked-wrong {
+    opacity: 0.5;
+    text-style: strike;
+}
+
+/* Feedback messages */
+.feedback {
+    padding: 1;
+    margin: 1 0;
+    text-align: center;
+}
+
+.feedback.correct {
+    background: $success 20%;
+    color: $success;
+    border: solid $success;
+}
+
+.feedback.incorrect {
+    background: $error 20%;
+    color: $error;
+    border: solid $error;
+}
+
+/* Progress indicators */
+.skill-badge {
+    background: $primary;
+    color: $text;
+    padding: 0 1;
+    margin-right: 1;
+}
+
+.stack-depth {
+    color: $primary;
+}
+
+/* Stats panel */
+.stats-panel {
+    border: solid $surface-lighten-2;
+    padding: 1;
+    margin: 1 0;
+}
+
+.stat-label {
+    color: $text-muted;
+}
+
+.stat-value {
+    text-style: bold;
+}
+
+/* Menu items */
+.menu-item {
+    padding: 1 2;
+    margin: 0 0 1 0;
+}
+
+.menu-item:hover {
+    background: $primary 20%;
+}
+
+.menu-item:focus {
+    background: $primary 30%;
+}
+
+/* Loading indicator */
+.loading {
+    text-align: center;
+    padding: 2;
+    color: $text-muted;
+}
+
+/* Session list */
+.session-item {
+    padding: 1;
+    border: solid $surface-lighten-1;
+    margin-bottom: 1;
+}
+
+.session-item:hover {
+    background: $surface-lighten-1;
+}
+
+/* Journey list */
+.journey-card {
+    border: solid $primary;
+    padding: 1;
+    margin: 1 0;
+}
+
+/* Analytics */
+.metric-card {
+    border: solid $surface-lighten-2;
+    padding: 1;
+    margin: 0 1 1 0;
+    min-width: 20;
+}
+
+.metric-value {
+    text-style: bold;
+    color: $primary;
+}
+
+.progress-bar {
+    height: 1;
+    margin: 1 0;
+}
+
+/* Modal screens */
+#session-picker-container {
+    width: 60;
+    height: auto;
+    max-height: 80%;
+    background: $surface;
+    border: solid $primary;
+    padding: 1 2;
+}
+
+#picker-title {
+    text-align: center;
+    margin-bottom: 1;
+}
+
+#picker-subtitle {
+    text-align: center;
+    color: $text-muted;
+    margin-bottom: 1;
+}
+
+#session-list {
+    max-height: 15;
+    overflow-y: auto;
+    margin-bottom: 1;
+}
+
+.no-sessions {
+    color: $text-muted;
+    text-align: center;
+    padding: 1;
+}
+
+/* Section headers */
+.section-header {
+    margin-top: 1;
+    margin-bottom: 0;
+}
+
+/* Mastery items */
+.mastery-item {
+    padding: 0 0 1 0;
+    border-bottom: solid $surface-lighten-1;
+}
+
+/* History items */
+.history-item {
+    padding: 0 0 1 0;
+}
+
+/* Topic items */
+.topic-item {
+    padding: 0 1;
+}
+
+/* No items placeholder */
+.no-items {
+    color: $text-muted;
+    padding: 1;
+}
