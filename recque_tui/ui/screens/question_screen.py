@@ -238,14 +238,26 @@ class QuestionScreen(Screen):
         """Update the stats display."""
         depth = self.stack.depth
         skill_progress = f"{self.current_skill_index + 1}/{len(self.skills)}"
-        self.query_one("#stack-depth").update(f"Depth: {depth} | Skill: {skill_progress}")
+
+        # Show contextual depth indicator only when drilled down due to incorrect answers
+        depth_widget = self.query_one("#stack-depth")
+        if depth > 1:
+            levels_deep = depth - 1
+            level_word = "level" if levels_deep == 1 else "levels"
+            depth_widget.update(
+                f"[yellow]{levels_deep} {level_word} deep — answer correctly to climb back[/yellow]"
+            )
+            depth_widget.display = True
+        else:
+            depth_widget.update("")
+            depth_widget.display = False
 
         accuracy = (
             f"{self.questions_correct}/{self.questions_answered}"
             if self.questions_answered > 0
             else "-"
         )
-        self.query_one("#stats").update(f"Score: {accuracy}")
+        self.query_one("#stats").update(f"Skill {skill_progress} | Score: {accuracy}")
 
     def _save_progress(self) -> None:
         """Save current progress to database."""
