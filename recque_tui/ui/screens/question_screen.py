@@ -71,6 +71,7 @@ class QuestionScreen(Screen):
 
             # Loading indicator (shown while generating)
             yield LoadingIndicator(id="loading")
+            yield Static("Generating your question…", id="loading-label")
 
             # Question card (hidden while loading)
             with Container(id="question-container", classes="question-card"):
@@ -103,6 +104,7 @@ class QuestionScreen(Screen):
         self.query_one("#feedback").display = False
         self.query_one("#actions").display = False
         self.query_one("#loading").display = True
+        self.query_one("#loading-label").display = True
 
         if self.resume_session:
             self._resume_from_session()
@@ -135,6 +137,7 @@ class QuestionScreen(Screen):
             skill = self.skills[self.current_skill_index]
             self.query_one("#skill-badge").update(f"[bold]{skill}[/bold]")
             self.query_one("#loading").display = False
+            self.query_one("#loading-label").display = False
             self._display_question()
 
     @work(thread=True)
@@ -230,6 +233,7 @@ class QuestionScreen(Screen):
 
         # Show question, hide loading
         self.query_one("#loading").display = False
+        self.query_one("#loading-label").display = False
         self.query_one("#question-container").display = True
         self.query_one("#feedback").display = False
         self.query_one("#actions").display = False
@@ -368,6 +372,7 @@ class QuestionScreen(Screen):
         else:
             # Generate new simpler question
             self.query_one("#loading").display = True
+            self.query_one("#loading-label").display = True
             self.query_one("#question-container").display = False
             question = self.stack.peek()
             self.generate_question(question.question_text, selected_answer)
@@ -379,6 +384,7 @@ class QuestionScreen(Screen):
     def _new_question(self) -> None:
         """Generate a new question for the current skill."""
         self.query_one("#loading").display = True
+        self.query_one("#loading-label").display = True
         self.query_one("#question-container").display = False
         self.query_one("#actions").display = False
         self.generate_question()
