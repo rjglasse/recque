@@ -43,4 +43,7 @@ class RecqueApp(App):
 
     def action_show_help(self) -> None:
         """Show help screen."""
-        self.notify("Help: Use arrow keys to navigate, Enter to select, q to quit")
+        self.notify(
+            "Keys: 1-4 select answer · Enter confirm · Escape pause · h home · q quit",
+            timeout=6,
+        )
