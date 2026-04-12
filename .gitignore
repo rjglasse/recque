@@ -37,3 +37,6 @@ uv.lock
 # OS
 .DS_Store
 Thumbs.db
+
+# Gas Town polecat context (runtime injection)
+CLAUDE.md
