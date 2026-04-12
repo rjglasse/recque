@@ -37,3 +37,6 @@ uv.lock
 # OS
 .DS_Store
 Thumbs.db
+
+# Gas Town polecat runtime (injected by gt, not project files)
+CLAUDE.md
