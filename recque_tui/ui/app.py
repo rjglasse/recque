@@ -14,7 +14,8 @@ class RecqueApp(App):
     CSS_PATH = "styles/theme.tcss"
 
     BINDINGS = [
-        Binding("q", "quit", "Quit", show=True),
+        Binding("0", "quit", "Quit", show=True),
+        Binding("q", "quit", "Quit", show=False),
         Binding("h", "go_home", "Home", show=True),
         Binding("?", "show_help", "Help", show=True),
     ]
@@ -44,6 +45,6 @@ class RecqueApp(App):
     def action_show_help(self) -> None:
         """Show help screen."""
         self.notify(
-            "Keys: 1-4 select answer · Enter confirm · Escape pause · h home · q quit",
+            "Keys: 1-4 select answer · Enter confirm · Escape pause · h home · 0 quit",
             timeout=6,
         )
