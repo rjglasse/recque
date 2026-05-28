@@ -1,13 +1,5 @@
 """FastAPI web application for RecQue."""
 
-import os
-
-# Default the web app to the claude_cli backend (claude -p under Claude Code OAuth,
-# no per-token spend). Must run before any recque_tui import: get_config() caches a
-# singleton on first call, so a later override would be dead. An explicit
-# RECQUE_BACKEND in the environment still wins.
-os.environ.setdefault("RECQUE_BACKEND", "claude_cli")
-
 import hashlib
 import logging
 from contextlib import asynccontextmanager

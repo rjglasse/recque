@@ -1,13 +1,10 @@
-"""AI client wrapper supporting Anthropic (Claude), claude CLI, and OpenAI backends."""
+"""AI client wrapper supporting Anthropic (Claude) and OpenAI backends."""
 
-import json
 import logging
 import os
-import shutil
-import subprocess
 from typing import Type, TypeVar
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from recque_tui.config import get_config
 from recque_tui.core.mock_generator import get_mock_generator
@@ -18,19 +15,12 @@ T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
 
 
-CLAUDE_CLI_TIMEOUT_SECONDS = 90
-CLAUDE_CLI_DEFAULT_MODEL = "sonnet"
-
-
 class AIClient:
-    """AI client supporting Claude (anthropic SDK), claude CLI (via subscription OAuth),
-    OpenAI, and mock backends.
+    """AI client supporting Claude (anthropic SDK), OpenAI, and mock backends.
 
     Backend selection:
-      1. RECQUE_BACKEND env var (explicit override): claude_cli|anthropic|openai|mock
+      1. RECQUE_BACKEND env var (explicit override): anthropic|openai|mock
       2. Auto-detect: ANTHROPIC_API_KEY → anthropic, else OPENAI_API_KEY → openai, else mock
-      3. claude_cli is never auto-selected — must be explicit (having `claude` on PATH
-         doesn't imply the user wants to route generation through their subscription).
     """
 
     def __init__(self, model: str | None = None, mock_mode: bool | None = None):
@@ -44,15 +34,7 @@ class AIClient:
         self.has_openai = bool(os.getenv("OPENAI_API_KEY"))
 
         explicit_backend = (config.backend or "").lower()
-        if explicit_backend == "claude_cli":
-            if not shutil.which("claude"):
-                raise RuntimeError(
-                    "RECQUE_BACKEND=claude_cli but the `claude` CLI is not on PATH. "
-                    "Install Claude Code or unset RECQUE_BACKEND."
-                )
-            self.backend = "claude_cli"
-            self.model = model or os.getenv("RECQUE_MODEL", CLAUDE_CLI_DEFAULT_MODEL)
-        elif explicit_backend == "anthropic":
+        if explicit_backend == "anthropic":
             self.backend = "anthropic"
             self.model = model or os.getenv("RECQUE_MODEL", "claude-sonnet-4-20250514")
         elif explicit_backend == "openai":
@@ -99,17 +81,7 @@ class AIClient:
 
         self.fell_back_to_mock = False
 
-        if self.backend == "claude_cli":
-            # No fallback to anthropic/openai — the whole point of choosing claude_cli
-            # is to avoid per-token API spend. On failure, drop to mock.
-            try:
-                return self._generate_claude_cli(prompt, response_format)
-            except Exception as e:
-                logger.error(f"claude CLI error: {e}")
-                logger.info("Falling back to mock generator")
-                self.fell_back_to_mock = True
-                return self._generate_mock(prompt, response_format)
-        elif self.backend == "anthropic":
+        if self.backend == "anthropic":
             try:
                 return self._generate_anthropic(prompt, response_format)
             except Exception as e:
@@ -131,85 +103,6 @@ class AIClient:
                 logger.info("Falling back to mock generator")
                 self.fell_back_to_mock = True
                 return self._generate_mock(prompt, response_format)
-
-    def _generate_claude_cli(self, prompt: str, response_format: Type[T]) -> T:
-        """Generate via `claude -p`, using the user's Claude Code OAuth (Max/Pro subscription).
-
-        No tool-use trick is available — we ask for JSON in the prompt and validate post-hoc,
-        with one retry on parse failure. The subprocess env strips ANTHROPIC_API_KEY so the
-        CLI falls back to OAuth instead of an empty-balance key. Pre-2026-06-15 these calls
-        draw from interactive Max quota; post-2026-06-15, a separate Agent SDK credit pool.
-        """
-        schema = response_format.model_json_schema()
-        system_prompt = (
-            "You generate JSON responses. Respond with a single JSON object that "
-            "matches the schema the user gives you. Output JSON only — no prose, "
-            "no markdown fences, no explanation."
-        )
-        augmented_prompt = (
-            f"{prompt}\n\n"
-            f"Return JSON matching this schema:\n{json.dumps(schema, indent=2)}"
-        )
-
-        env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-        cmd = [
-            "claude", "-p", augmented_prompt,
-            "--model", self.model,
-            "--system-prompt", system_prompt,
-            "--output-format", "json",
-            "--disable-slash-commands",
-        ]
-
-        last_error: Exception | None = None
-        for attempt in range(2):
-            try:
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                    timeout=CLAUDE_CLI_TIMEOUT_SECONDS,
-                    env=env,
-                )
-            except subprocess.TimeoutExpired:
-                raise RuntimeError(f"claude -p timed out after {CLAUDE_CLI_TIMEOUT_SECONDS}s")
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(f"claude -p exited with {e.returncode}: {e.stderr.strip()[:300]}")
-
-            try:
-                envelope = json.loads(result.stdout)
-            except json.JSONDecodeError as e:
-                raise RuntimeError(f"claude -p returned non-JSON stdout: {e}")
-
-            if envelope.get("is_error"):
-                raise RuntimeError(
-                    f"claude -p reported an error: {envelope.get('result', '<no message>')}"
-                )
-
-            payload_text = (envelope.get("result") or "").strip()
-            if payload_text.startswith("```"):
-                # Strip ```json / ``` fences the model might add despite instructions
-                lines = payload_text.split("\n")
-                if lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines and lines[-1].rstrip() == "```":
-                    lines = lines[:-1]
-                payload_text = "\n".join(lines).strip()
-
-            try:
-                parsed = response_format.model_validate_json(payload_text)
-                logger.info(f"claude_cli response: {parsed}")
-                return parsed
-            except (ValidationError, json.JSONDecodeError) as e:
-                last_error = e
-                if attempt == 0:
-                    logger.warning(f"claude -p returned non-conforming JSON, retrying once: {e}")
-                    continue
-                raise RuntimeError(
-                    f"claude -p returned non-conforming JSON after retry: {payload_text[:200]}"
-                ) from last_error
-
-        raise RuntimeError("unreachable")  # safety net for the loop
 
     def _generate_anthropic(self, prompt: str, response_format: Type[T]) -> T:
         schema = response_format.model_json_schema()

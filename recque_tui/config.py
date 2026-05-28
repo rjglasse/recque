@@ -41,9 +41,8 @@ class Config:
         default_factory=lambda: os.getenv("RECQUE_MOCK_MODE", "").lower() in ("1", "true", "yes")
     )
 
-    # Backend override (claude_cli|anthropic|openai|mock). Empty = auto-detect.
-    # claude_cli is never auto-selected — must be explicit, since having `claude` on PATH
-    # doesn't imply the user wants to route question generation through it.
+    # Backend override (anthropic|openai|mock). Empty = auto-detect:
+    # ANTHROPIC_API_KEY → anthropic, else OPENAI_API_KEY → openai, else mock.
     backend: str = field(
         default_factory=lambda: os.getenv("RECQUE_BACKEND", "").lower()
     )
