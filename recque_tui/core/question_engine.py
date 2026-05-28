@@ -4,6 +4,7 @@ import hashlib
 import logging
 import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from recque_tui.config import get_config
@@ -15,6 +16,29 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+SYSTEM_PROMPT = """You are an expert educator creating adaptive multiple-choice questions.
+Your questions should test genuine understanding, not surface-level recall.
+Use concrete scenarios, code snippets, real-world analogies, or thought experiments where appropriate.
+Every incorrect answer should represent a specific, named misconception — not just a plausible-sounding wrong option.
+After the question, provide a concise explanation of why the correct answer is right and what each wrong answer reveals about the learner's misunderstanding."""
+
+PROMPT_RULES = """Rules for the question:
+- The question can use a scenario, code snippet, diagram description, or thought experiment to set context.
+- Provide exactly 3 incorrect answers, each targeting a distinct misconception.
+- The correct answer must be unambiguously right.
+- Do not make the correct answer longer or more detailed than the distractors.
+- Do not prefix answers with letters, numbers, or dashes.
+- Provide a brief explanation (2-3 sentences) that says why the correct answer is right and what each wrong answer reveals about the learner's thinking."""
+
+
+@dataclass
+class LearningContext:
+    """Context about the learner's current state, fed into prompts for adaptation."""
+    stack_breadcrumbs: list[str] | None = None
+    questions_answered: int = 0
+    questions_correct: int = 0
+    stack_depth: int = 0
+
 
 class QuestionEngine:
     """Handles question generation with caching and prefetching."""
@@ -24,32 +48,17 @@ class QuestionEngine:
         ai_client: AIClient | None = None,
         question_repo: "QuestionRepository | None" = None,
     ):
-        """Initialize the question engine.
-
-        Args:
-            ai_client: The AI client to use. If None, creates a new one.
-            question_repo: The question repository for caching. If None, no caching.
-        """
         self.ai_client = ai_client or AIClient()
         self.question_repo = question_repo
         self.config = get_config()
 
     def generate_skillmap(self, topic: str) -> list[str]:
-        """Generate a list of skills for a topic.
+        prompt = f"""Generate a learning path for the topic: {topic}.
 
-        Args:
-            topic: The topic to generate skills for.
-
-        Returns:
-            A list of skill names.
-        """
-        prompt = f"""Task:
-Generate a list of skills for the topic: {topic}.
-
-Instructions:
-The list of skills should contain 3 concepts in a natural progression that are important to understand the topic.
-The response should only be the skills and no other additional information.
-There is no need to provide an index of skill, such as a number, dash or other characters."""
+Provide exactly 3 skills that form a natural progression from foundational to advanced.
+Each skill should be specific and assessable — not vague categories.
+For example, for "Python decorators": not "Basics, Intermediate, Advanced" but "First-class functions and closures", "Writing simple decorators", "Decorators with arguments and stacking".
+Return only the skill names."""
 
         skillmap = self.ai_client.generate(prompt, SkillMap)
         return skillmap.skills
@@ -60,19 +69,8 @@ There is no need to provide an index of skill, such as a number, dash or other c
         prior_question: str | None = None,
         prior_answer: str | None = None,
         variation: bool = False,
+        context: LearningContext | None = None,
     ) -> Question:
-        """Generate a question for a skill.
-
-        Args:
-            skill: The skill to generate a question for.
-            prior_question: The previous question (for simpler/variation questions).
-            prior_answer: The user's incorrect answer (for simpler questions).
-            variation: If True, generate a harder variation instead of simpler.
-
-        Returns:
-            A Question object.
-        """
-        # Check cache first
         if self.question_repo and not prior_question:
             question_hash = self._compute_hash(skill, prior_question, prior_answer, variation)
             cached = self.question_repo.get_by_hash(question_hash)
@@ -80,58 +78,101 @@ There is no need to provide an index of skill, such as a number, dash or other c
                 logger.info(f"Cache hit for question hash: {question_hash}")
                 return cached
 
-        # Build prompt
+        context_section = self._build_context_section(context)
+
         if variation:
-            prompt = f"""Task:
-Generate a new question about {skill} that is a more challenging variation of the previous question.
-They answered this correctly: {prior_question}.
+            prompt = f"""{SYSTEM_PROMPT}
 
-Make sure you follow these rules: {self.config.prompt_rules}"""
+The learner correctly answered this question about {skill}:
+"{prior_question}"
+
+{context_section}
+
+Generate a harder follow-up question that builds on the same concept but requires deeper understanding.
+Raise the difficulty: introduce edge cases, combine concepts, or require applying the idea in an unfamiliar context.
+
+{PROMPT_RULES}"""
         elif prior_question:
-            prompt = f"""Task:
-Generate a simpler question about {skill} based on the question that was incorrectly answered: {prior_question}.
-The learner answered: {prior_answer}. This was incorrect and shows they do not understand all the concepts.
-Try use their misconception and formulate a new related question to help explain the misconception.
-Perhaps try to break down the original question into smaller parts that help simplify it.
+            prompt = f"""{SYSTEM_PROMPT}
 
-Make sure you follow these rules: {self.config.prompt_rules}"""
+The learner is studying: {skill}
+
+They were asked: "{prior_question}"
+They answered: "{prior_answer}" — this was INCORRECT.
+
+{context_section}
+
+Diagnose the misconception behind their answer. Then generate a simpler question that directly addresses that specific misunderstanding.
+The new question should help the learner discover *why* their answer was wrong, not just test a simpler version of the same fact.
+Think about what prerequisite knowledge they might be missing and target that.
+
+{PROMPT_RULES}"""
         else:
-            prompt = f"""Task:
-Create an engaging, insightful and challenging multiple choice question that focuses on this skill: {skill}.
+            prompt = f"""{SYSTEM_PROMPT}
 
-Make sure you follow these rules: {self.config.prompt_rules}"""
+Generate a question about: {skill}
+
+{context_section}
+
+Create a question that tests genuine understanding of this skill.
+Use a concrete scenario, code example, or real-world situation where possible.
+The question should require thinking, not just recall.
+
+{PROMPT_RULES}"""
 
         question = self.ai_client.generate(prompt, Question)
 
-        # Cache the question
         if self.question_repo and not prior_question:
             question_hash = self._compute_hash(skill, prior_question, prior_answer, variation)
             self.question_repo.save(question, skill, question_hash)
 
         return question
 
+    def _build_context_section(self, context: LearningContext | None) -> str:
+        if not context:
+            return ""
+
+        parts = []
+
+        if context.questions_answered > 0:
+            accuracy = context.questions_correct / context.questions_answered * 100
+            parts.append(
+                f"Session performance: {context.questions_correct}/{context.questions_answered} "
+                f"correct ({accuracy:.0f}% accuracy)."
+            )
+
+            if accuracy >= 80:
+                parts.append("The learner is doing well — challenge them.")
+            elif accuracy >= 50:
+                parts.append("The learner is struggling somewhat — aim for clarity over difficulty.")
+            else:
+                parts.append("The learner is finding this hard — use simple, concrete language and build confidence.")
+
+        if context.stack_depth > 1 and context.stack_breadcrumbs:
+            chain = " → ".join(f'"{b}"' for b in context.stack_breadcrumbs)
+            parts.append(
+                f"The learner has drilled down {context.stack_depth - 1} level(s) "
+                f"through these questions: {chain}. "
+                f"Each level was triggered by a wrong answer. Keep simplifying."
+            )
+
+        if not parts:
+            return ""
+        return "Learner context:\n" + "\n".join(parts)
+
     def prefetch_simpler_questions(
-        self, topic: str, skill: str, current_question: Question
+        self, topic: str, skill: str, current_question: Question,
+        context: LearningContext | None = None,
     ) -> dict[str, Question]:
-        """Prefetch simpler questions for all incorrect answers in parallel.
-
-        Args:
-            topic: The current topic.
-            skill: The current skill.
-            current_question: The question being displayed.
-
-        Returns:
-            A dict mapping incorrect answers to their simpler questions.
-        """
         prefetched: dict[str, Question] = {}
         full_skill = f"{topic}. {skill}"
 
         def generate_for_answer(answer: str) -> tuple[str, Question]:
-            """Generate a simpler question for an incorrect answer."""
             simpler = self.generate_question(
                 full_skill,
                 prior_question=current_question.question_text,
                 prior_answer=answer,
+                context=context,
             )
             return answer, simpler
 
@@ -140,7 +181,6 @@ Make sure you follow these rules: {self.config.prompt_rules}"""
                 executor.submit(generate_for_answer, answer)
                 for answer in current_question.incorrect_answers
             ]
-
             for future in as_completed(futures):
                 answer, question = future.result()
                 prefetched[answer] = question
@@ -148,16 +188,7 @@ Make sure you follow these rules: {self.config.prompt_rules}"""
         return prefetched
 
     def verify_question(self, question: Question) -> Question:
-        """Verify a question has a correct answer and repair if needed.
-
-        Args:
-            question: The question to verify.
-
-        Returns:
-            The verified (possibly repaired) question.
-        """
-        prompt = f"""Task:
-You are given a multiple-choice question, along with possible answers.
+        prompt = f"""You are given a multiple-choice question, along with possible answers.
 Your goal is to determine if at least one of the provided answers is correct.
 
 Question:
@@ -182,29 +213,12 @@ Instructions:
 
     @staticmethod
     def shuffle_answers(question: Question) -> list[str]:
-        """Shuffle the answers for display.
-
-        Args:
-            question: The question to shuffle answers for.
-
-        Returns:
-            A shuffled list of all answers.
-        """
         answers = question.all_answers()
         random.shuffle(answers)
         return answers
 
     @staticmethod
     def judge(question: Question, selected_answer: str) -> bool:
-        """Judge if the selected answer is correct.
-
-        Args:
-            question: The question being answered.
-            selected_answer: The user's selected answer.
-
-        Returns:
-            True if correct, False otherwise.
-        """
         return question.correct_answer == selected_answer
 
     @staticmethod
@@ -214,6 +228,5 @@ Instructions:
         prior_answer: str | None,
         variation: bool,
     ) -> str:
-        """Compute a hash for caching questions."""
         content = f"{skill}|{prior_question}|{prior_answer}|{variation}"
         return hashlib.sha256(content.encode()).hexdigest()[:16]

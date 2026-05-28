@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}RecQue - Learn through Recursive Questions{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1>RecQue</h1>
+    <p class="subtitle">Learn through recursive questioning</p>
+    <p class="description">Answer wrong? Drill down into simpler questions. Answer right? Climb back up. Build understanding from the ground up.</p>
+</div>
+
+<div class="card start-card">
+    <form action="/start" method="post" class="start-form">
+        <label for="topic">What do you want to learn?</label>
+        <div class="input-row">
+            <input type="text" id="topic" name="topic" placeholder="e.g. Python decorators, quantum entanglement, the French Revolution..." required autofocus>
+            <button type="submit" class="btn btn-primary">Start</button>
+        </div>
+    </form>
+</div>
+
+{% if resumable %}
+<section class="sessions-section">
+    <h2>Resume a Session</h2>
+    <div class="session-list">
+        {% for s in resumable %}
+        <a href="/resume/{{ s.id }}" class="session-card">
+            <div class="session-topic">{{ s.topic }}</div>
+            <div class="session-meta">
+                <span class="badge badge-{{ s.status }}">{{ s.status }}</span>
+                <span>{{ s.skills_completed }}/{{ s.total_skills }} skills</span>
+                <span>{{ s.started_at.strftime('%b %d') }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if completed %}
+<section class="sessions-section">
+    <h2>Recently Completed</h2>
+    <div class="session-list">
+        {% for s in completed %}
+        <div class="session-card completed">
+            <div class="session-topic">{{ s.topic }}</div>
+            <div class="session-meta">
+                <span class="badge badge-completed">completed</span>
+                <span>{{ s.started_at.strftime('%b %d') }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}

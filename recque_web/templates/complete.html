@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}RecQue - Topic Complete!{% endblock %}
+
+{% block content %}
+<div class="complete-page">
+    <h1>Topic Complete!</h1>
+    <p>You've completed all skills for <strong>{{ topic }}</strong>.</p>
+    <div class="complete-actions">
+        <a href="/" class="btn btn-primary">Learn Something New</a>
+        <a href="/progress" class="btn btn-secondary">View Progress</a>
+    </div>
+</div>
+{% endblock %}

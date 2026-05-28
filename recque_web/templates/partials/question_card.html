@@ -1,0 +1,34 @@
+{% if stack.depth > 1 %}
+<div class="stack-visualiser">
+    <div class="stack-depth-indicator">
+        {% set levels = stack.depth - 1 %}
+        {{ levels }} level{{ 's' if levels != 1 }} deep — answer correctly to climb back
+    </div>
+    <div class="stack-cards">
+        {% for crumb in breadcrumbs[:-1] %}
+        <div class="stack-ghost" style="--ghost-index: {{ loop.index0 }};">
+            <div class="ghost-text">{{ crumb }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="question-card">
+    <div class="question-text">{{ question.question_text }}</div>
+    <div class="answers">
+        {% for ans in answers %}
+        <button
+            class="answer-btn {% if ans in marked_incorrect %}marked-wrong{% endif %}"
+            hx-post="/quiz/{{ session_id }}/answer"
+            hx-target="#quiz-area"
+            hx-swap="innerHTML swap:0.15s"
+            hx-vals='{"answer": "{{ ans | e }}"}'
+            {% if ans in marked_incorrect %}disabled{% endif %}
+        >
+            <span class="answer-number">{{ loop.index }}</span>
+            <span class="answer-text">{{ ans }}</span>
+        </button>
+        {% endfor %}
+    </div>
+</div>

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}RecQue - {{ topic }}{% endblock %}
+
+{% block content %}
+<div class="quiz-header">
+    <div class="quiz-topic">{{ topic }}</div>
+    <div class="quiz-meta">
+        <span class="badge badge-primary">Skill {{ skill_index }}/{{ total_skills }}: {{ skill }}</span>
+    </div>
+</div>
+
+<div id="quiz-area">
+    {% include "partials/question_card.html" %}
+</div>
+{% endblock %}

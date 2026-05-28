@@ -1,0 +1,30 @@
+<div class="feedback feedback-correct">
+    <span>Well done! You've completed <strong>{{ skill }}</strong>.</span>
+</div>
+
+{% if explanation %}
+<div class="explanation">
+    <div class="explanation-label">Final explanation</div>
+    <div class="explanation-text">{{ explanation }}</div>
+</div>
+{% endif %}
+
+<div class="skill-complete-card">
+    <h2>Skill Complete</h2>
+    <p>{{ skill }} ({{ skill_index }}/{{ total_skills }})</p>
+
+    <div class="skill-actions">
+        {% if is_last_skill %}
+        <form action="/quiz/{{ session_id }}/next-skill" method="post">
+            <button type="submit" class="btn btn-primary">Finish Topic</button>
+        </form>
+        {% else %}
+        <form action="/quiz/{{ session_id }}/next-skill" method="post" style="display:inline;">
+            <button type="submit" class="btn btn-primary">Next Skill</button>
+        </form>
+        <form action="/quiz/{{ session_id }}/new-question" method="post" style="display:inline;">
+            <button type="submit" class="btn btn-secondary">Practice Again</button>
+        </form>
+        {% endif %}
+    </div>
+</div>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}RecQue{% endblock %}</title>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo">RecQue</a>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/progress">Progress</a>
+            {% if ai_mode and not ai_fell_back %}
+            <span class="ai-badge ai-live">{{ ai_model }}</span>
+            {% elif ai_fell_back %}
+            <span class="ai-badge ai-mock" title="API call failed, using fallback questions">AI fallback</span>
+            {% else %}
+            <span class="ai-badge ai-mock">Mock mode</span>
+            {% endif %}
+        </div>
+    </nav>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

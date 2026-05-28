@@ -279,29 +279,35 @@ class TestAIClientMockMode:
         assert result.valid is True
 
     def test_lazy_client_initialization(self):
-        """Test OpenAI client is not initialized in mock mode until needed."""
+        """Test API clients are not initialized in mock mode until needed."""
         client = AIClient(mock_mode=True)
-        # Should not have initialized OpenAI client yet
-        assert client._client is None
+        assert client._anthropic_client is None
+        assert client._openai_client is None
 
-        # Generate in mock mode - still no OpenAI client needed
         client.generate("Test prompt", SkillMap)
-        assert client._client is None
+        assert client._anthropic_client is None
+        assert client._openai_client is None
 
     def test_fallback_to_mock_on_error(self):
         """Test that API errors fall back to mock generator."""
         client = AIClient(mock_mode=False)
 
-        # Mock the OpenAI client to raise an error
-        with patch.object(client, "_client", create=True) as mock_openai:
-            mock_openai.beta.chat.completions.parse.side_effect = Exception("API Error")
-            client._client = mock_openai
-
-            # Should fall back to mock
-            result = client.generate(
-                "Generate a skillmap for topic: Python",
-                SkillMap,
-            )
+        if client.backend == "anthropic":
+            with patch.object(client, "_anthropic_client", create=True) as mock_api:
+                mock_api.messages.create.side_effect = Exception("API Error")
+                client._anthropic_client = mock_api
+                result = client.generate(
+                    "Generate a skillmap for topic: Python",
+                    SkillMap,
+                )
+        else:
+            with patch.object(client, "_openai_client", create=True) as mock_openai:
+                mock_openai.beta.chat.completions.parse.side_effect = Exception("API Error")
+                client._openai_client = mock_openai
+                result = client.generate(
+                    "Generate a skillmap for topic: Python",
+                    SkillMap,
+                )
 
             assert isinstance(result, SkillMap)
             assert len(result.skills) > 0

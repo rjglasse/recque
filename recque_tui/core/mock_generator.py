@@ -27,6 +27,7 @@ class MockGenerator:
                     question_text="What is the correct way to create a variable in Python?",
                     correct_answer="x = 5",
                     incorrect_answers=["var x = 5", "int x = 5", "let x = 5"],
+                    explanation="Python uses simple assignment without declaration keywords. 'var' is JavaScript, 'int x' is C/C++, and 'let' is ES6 JavaScript. Python's dynamic typing means the interpreter infers the type from the value.",
                 ),
                 followups={
                     "var x = 5": QuestionNode(
@@ -109,6 +110,7 @@ class MockGenerator:
                     question_text="Which of the following is an immutable data type in Python?",
                     correct_answer="tuple",
                     incorrect_answers=["list", "dictionary", "set"],
+                    explanation="Tuples cannot be modified after creation — you can't add, remove, or change elements. Lists, dictionaries, and sets are all mutable. Choosing 'list' suggests confusing sequence types; choosing 'set' suggests confusing 'unordered' with 'immutable'.",
                 ),
                 followups={
                     "list": QuestionNode(
@@ -186,6 +188,7 @@ class MockGenerator:
                     question_text="Which keyword is used to skip the current iteration in a loop?",
                     correct_answer="continue",
                     incorrect_answers=["break", "pass", "skip"],
+                    explanation="'continue' skips to the next iteration. 'break' exits the loop entirely — a common confusion. 'pass' is a no-op placeholder. 'skip' isn't a Python keyword at all.",
                 ),
                 followups={
                     "break": QuestionNode(
@@ -270,6 +273,7 @@ class MockGenerator:
                     question_text="Which keyword is used to define a function in Python?",
                     correct_answer="def",
                     incorrect_answers=["function", "func", "define"],
+                    explanation="Python uses 'def' (short for 'define'). 'function' is JavaScript, 'func' is Go/Swift. Each language chose its own keyword — knowing which belongs where reveals cross-language confusion.",
                 ),
                 followups={
                     "function": QuestionNode(
@@ -783,8 +787,8 @@ class MockGenerator:
             self._used_questions.add(node.question.question_text)
             return node.question
 
-        # Fallback to generic
-        return self._get_generic_question()
+        # Fallback to topic-aware templates
+        return self._get_generic_question(skill_lower)
 
     def _get_trees_for_skill(self, skill_lower: str) -> list[QuestionNode]:
         """Get question trees matching a skill."""
@@ -830,8 +834,11 @@ class MockGenerator:
 
         return None
 
-    def _get_generic_question(self) -> Question:
-        """Get a generic fallback question."""
+    def _get_generic_question(self, skill: str = "") -> Question:
+        """Generate a contextual question for any topic using templates."""
+        if skill:
+            return self._generate_from_templates(skill)
+
         available = [t for t in self.GENERIC_TREES
                     if t.question.question_text not in self._used_questions]
         if not available:
@@ -841,6 +848,91 @@ class MockGenerator:
         node = random.choice(available)
         self._used_questions.add(node.question.question_text)
         return node.question
+
+    def _generate_from_templates(self, skill: str) -> Question:
+        """Generate a contextual question from templates using the skill name."""
+        core_skill = skill
+        # Strip topic prefix (e.g. "python basics. functions" -> "functions")
+        if ". " in skill:
+            core_skill = skill.split(". ", 1)[1]
+        # Strip "topic - " prefix from generic skills (e.g. "machine learning - fundamental concepts")
+        if " - " in core_skill:
+            core_skill = core_skill.split(" - ", 1)[1]
+        # Capitalize nicely
+        core_skill = core_skill.strip().title() if core_skill.islower() else core_skill.strip()
+
+        templates = [
+            {
+                "question_text": f"A colleague claims they fully understand {core_skill}. Which of the following would best demonstrate genuine mastery?",
+                "correct_answer": f"Explaining {core_skill} to someone unfamiliar with it and answering their follow-up questions",
+                "incorrect_answers": [
+                    f"Reciting the textbook definition of {core_skill} from memory",
+                    f"Having used {core_skill} once successfully in a project",
+                    f"Passing a multiple-choice test about {core_skill} terminology",
+                ],
+                "explanation": f"True mastery of {core_skill} is demonstrated by the ability to teach it and handle novel questions — this requires deep understanding, not just recall or single-use experience.",
+            },
+            {
+                "question_text": f"When encountering a problem that requires {core_skill}, what is the most effective first step?",
+                "correct_answer": f"Break the problem down and identify which specific aspect of {core_skill} applies",
+                "incorrect_answers": [
+                    f"Search for a complete solution to copy",
+                    f"Try random approaches until something works",
+                    f"Skip it and come back later when you know more",
+                ],
+                "explanation": f"Decomposing the problem reveals which parts of {core_skill} are relevant. Copying solutions skips learning, trial-and-error is inefficient, and avoidance prevents growth.",
+            },
+            {
+                "question_text": f"What is the most common misconception that beginners have about {core_skill}?",
+                "correct_answer": f"That {core_skill} is simpler than it actually is — the edge cases and nuances are where real understanding lives",
+                "incorrect_answers": [
+                    f"That {core_skill} is too difficult to ever learn properly",
+                    f"That you need advanced credentials before attempting {core_skill}",
+                    f"That {core_skill} is no longer relevant or useful",
+                ],
+                "explanation": f"Beginners often underestimate the depth of {core_skill}. The basics feel simple, but mastery requires understanding boundary conditions, exceptions, and how it interacts with other concepts.",
+            },
+            {
+                "question_text": f"You're explaining {core_skill} to a peer and they say 'I think I get it.' What should you do next?",
+                "correct_answer": f"Ask them to solve a small problem using {core_skill} — application reveals gaps that passive understanding hides",
+                "incorrect_answers": [
+                    f"Move on to the next topic since they confirmed understanding",
+                    f"Repeat the same explanation more slowly",
+                    f"Give them a list of resources to read on their own",
+                ],
+                "explanation": f"'I think I get it' often means surface-level recognition, not genuine understanding. Having someone apply {core_skill} to a concrete problem quickly reveals misconceptions.",
+            },
+            {
+                "question_text": f"If you had to rank the following approaches to learning {core_skill}, which order would be most effective?",
+                "correct_answer": f"Understand the 'why' first, then practice with examples, then tackle edge cases",
+                "incorrect_answers": [
+                    f"Memorize rules first, then understand them later through practice",
+                    f"Start with the hardest examples to build resilience, then review basics",
+                    f"Read all available documentation before attempting any practice",
+                ],
+                "explanation": f"Understanding motivation ('why does {core_skill} exist?') creates a framework. Practice with examples builds fluency. Edge cases develop mastery. This progression matches how expertise actually develops.",
+            },
+            {
+                "question_text": f"A student makes an error while practicing {core_skill}. From a learning perspective, what is the most valuable next step?",
+                "correct_answer": f"Analyze why the error happened and identify the specific concept they misunderstood",
+                "incorrect_answers": [
+                    f"Simply correct the error and move on to the next exercise",
+                    f"Repeat the same exercise until they get it right by chance",
+                    f"Switch to an easier topic to rebuild confidence first",
+                ],
+                "explanation": f"Errors in {core_skill} are diagnostic — they reveal exactly which prerequisite concept is shaky. Analyzing the 'why' behind the mistake is more valuable than the correction itself.",
+            },
+        ]
+
+        available = [t for t in templates
+                    if t["question_text"] not in self._used_questions]
+        if not available:
+            self._used_questions.clear()
+            available = templates
+
+        chosen = random.choice(available)
+        self._used_questions.add(chosen["question_text"])
+        return Question(**chosen)
 
     def verify_question(self, question: Question) -> Review:
         """Mock verification - always returns valid."""

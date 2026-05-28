@@ -1,0 +1,14 @@
+<div class="feedback feedback-correct">
+    <span>{{ message }}</span>
+</div>
+
+{% if explanation %}
+<div class="explanation">
+    <div class="explanation-label">Why?</div>
+    <div class="explanation-text">{{ explanation }}</div>
+</div>
+{% endif %}
+
+<div class="pop-animate">
+    {% include "partials/question_card.html" %}
+</div>

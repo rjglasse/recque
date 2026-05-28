@@ -13,6 +13,7 @@ class Question(BaseModel):
     question_text: str
     correct_answer: str
     incorrect_answers: list[str]
+    explanation: str = ""
 
     def all_answers(self) -> list[str]:
         """Return all answers (correct + incorrect)."""

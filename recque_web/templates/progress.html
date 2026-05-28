@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}RecQue - Progress{% endblock %}
+
+{% block content %}
+<h1>Your Progress</h1>
+
+{% if not metrics or metrics.total_sessions == 0 %}
+<div class="card empty-state">
+    <p>No learning data yet. <a href="/">Start a session</a> to see your progress here.</p>
+</div>
+{% else %}
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ streak.current_streak }}</div>
+        <div class="stat-label">Day Streak</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ metrics.total_sessions }}</div>
+        <div class="stat-label">Sessions</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ metrics.total_questions }}</div>
+        <div class="stat-label">Questions</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ "%.0f" | format(metrics.accuracy * 100) }}%</div>
+        <div class="stat-label">Accuracy</div>
+    </div>
+</div>
+
+{% if topics %}
+<section>
+    <h2>Topics</h2>
+    <div class="topic-list">
+        {% for t in topics %}
+        <div class="topic-row">
+            <div class="topic-name">{{ t.topic_name }}</div>
+            <div class="mastery-bar">
+                <div class="mastery-fill" style="width: {{ (t.mastery_level * 100) | int }}%"></div>
+            </div>
+            <div class="topic-accuracy">{{ "%.0f" | format(t.accuracy * 100) }}%</div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if gaps %}
+<section>
+    <h2>Knowledge Gaps</h2>
+    <div class="gap-list">
+        {% for g in gaps %}
+        <div class="gap-row">
+            <span class="gap-topic">{{ g.topic }}</span>
+            <span class="gap-mastery">{{ "%.0f" | format(g.mastery * 100) }}% mastery</span>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if history %}
+<section>
+    <h2>Recent Sessions</h2>
+    <table class="history-table">
+        <thead>
+            <tr>
+                <th>Topic</th>
+                <th>Status</th>
+                <th>Questions</th>
+                <th>Accuracy</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for h in history %}
+            <tr>
+                <td>{{ h.topic }}</td>
+                <td><span class="badge badge-{{ h.status }}">{{ h.status }}</span></td>
+                <td>{{ h.questions_answered }}</td>
+                <td>{{ "%.0f" | format(h.accuracy * 100) }}%</td>
+                <td>{{ h.started_at.strftime('%b %d, %Y') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+
+{% endif %}
+{% endblock %}
