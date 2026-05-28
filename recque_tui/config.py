@@ -16,10 +16,10 @@ class Config:
     """Application configuration."""
 
     # AI Settings
-    default_model: str = "gpt-4o-mini"
-    model: str = field(default_factory=lambda: os.getenv("RECQUE_MODEL", "gpt-4o-mini"))
+    default_model: str = "gpt-4o"
+    model: str = field(default_factory=lambda: os.getenv("RECQUE_MODEL", "gpt-4o"))
     valid_models: list[str] = field(
-        default_factory=lambda: ["gpt-4o", "gpt-4o-mini", "o3-mini"]
+        default_factory=lambda: ["gpt-4o", "gpt-4o-mini", "o3-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"]
     )
 
     # Database Settings
@@ -41,14 +41,19 @@ class Config:
         default_factory=lambda: os.getenv("RECQUE_MOCK_MODE", "").lower() in ("1", "true", "yes")
     )
 
-    # Prompt Rules (for question generation)
-    prompt_rules: str = """Keep the question under 50 words.
-Provide at least two incorrect but plausible and realistic alternative answers.
-The alternative answers ideally should target common misconceptions.
-Each answer should be no more than 20 words.
+    # Backend override (claude_cli|anthropic|openai|mock). Empty = auto-detect.
+    # claude_cli is never auto-selected — must be explicit, since having `claude` on PATH
+    # doesn't imply the user wants to route question generation through it.
+    backend: str = field(
+        default_factory=lambda: os.getenv("RECQUE_BACKEND", "").lower()
+    )
+
+    # Legacy prompt rules (kept for backward compatibility with TUI)
+    prompt_rules: str = """Provide exactly 3 incorrect but plausible answers, each targeting a distinct misconception.
 Ensure there is exactly one correct answer, verify that it is correct.
 Ensure it is not obvious which answer is correct; in terms of being longer or containing more information.
-Do not provide a prefix for the index of each alternative answer, such as a number, letter, dash or other characters."""
+Do not provide a prefix for the index of each alternative answer, such as a number, letter, dash or other characters.
+Provide a brief explanation of why the correct answer is right."""
 
 
 _config: Config | None = None

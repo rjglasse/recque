@@ -18,7 +18,13 @@ uv run pytest tests/test_learning_stack.py   # one file
 uv run ruff check .         # lint
 ```
 
-Requires `OPENAI_API_KEY` for live AI calls. Tests don't hit the API — `tests/test_mock_generator.py` exercises a deterministic mock generator.
+Requires AI credentials for live calls. Pick one:
+- `RECQUE_BACKEND=claude_cli` — uses the locally-installed `claude` CLI under your Claude Code OAuth (Max/Pro subscription). No per-token API spend. Default model: `sonnet`. The subprocess strips `ANTHROPIC_API_KEY` so the CLI uses OAuth, not an API key.
+- `ANTHROPIC_API_KEY` set → Anthropic SDK path (per-token billing).
+- `OPENAI_API_KEY` set → OpenAI path (per-token billing).
+- Neither + no `claude` CLI → automatic mock mode.
+
+Tests don't hit any of these — `tests/test_mock_generator.py` exercises a deterministic mock generator.
 
 ## Layout
 
