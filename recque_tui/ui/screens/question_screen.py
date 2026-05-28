@@ -1,15 +1,15 @@
 """Question screen - the core quiz interface."""
 
+from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, LoadingIndicator, Static
-from textual import work
 
-from recque_tui.core.learning_stack import LearningStack
+from recque_tui.application import SessionService
 from recque_tui.core.models import Question
 from recque_tui.core.question_engine import QuestionEngine
-from recque_tui.application import SessionService
+from recque_tui.core.session import AnswerResult, Outcome, Session
 from recque_tui.database.schema import LearningSession
 
 
@@ -44,15 +44,10 @@ class QuestionScreen(Screen):
         super().__init__(name=name, id=id, classes=classes)
         self.topic = topic or ""
         self.resume_session = resume_session
-        self.skills: list[str] = []
-        self.current_skill_index = 0
-        self.stack = LearningStack()
         self.engine = QuestionEngine()
+        self.session: Session | None = None
         self.current_answers: list[str] = []
-        self.prefetched: dict[str, Question] = {}
         self.answered = False
-        self.questions_answered = 0
-        self.questions_correct = 0
         self.db_session: LearningSession | None = None
 
     def compose(self) -> ComposeResult:
@@ -117,25 +112,27 @@ class QuestionScreen(Screen):
             state = service.get_session_state(self.resume_session)
             if state:
                 self.topic = state["topic"]
-                self.skills = state["skills"]
-                self.current_skill_index = state["current_skill_index"]
+                self.session = Session.restore(
+                    state["topic"],
+                    state["skills"],
+                    state["current_skill_index"],
+                    state["stack_data"],
+                )
                 self.db_session = self.resume_session
-
-                # Restore stack if available
-                if state["stack_data"]:
-                    self.stack = LearningStack.from_dict(state["stack_data"])
-
                 service.resume_session(self.resume_session)
+
+        if self.session is None:
+            # No saved state — nothing to resume.
+            self.session = Session(self.topic, [])
 
         self.query_one("#topic-label").update(f"[bold magenta]{self.topic}[/bold magenta]")
 
-        if self.stack.is_empty:
+        if self.session.depth == 0:
             # Need to generate a new question
             self._start_skill()
         else:
             # Resume with existing stack
-            skill = self.skills[self.current_skill_index]
-            self.query_one("#skill-badge").update(f"[bold]{skill}[/bold]")
+            self.query_one("#skill-badge").update(f"[bold]{self.session.current_skill}[/bold]")
             self.query_one("#loading").display = False
             self.query_one("#loading-label").display = False
             self._display_question()
@@ -143,62 +140,56 @@ class QuestionScreen(Screen):
     @work(thread=True)
     def generate_skillmap(self) -> None:
         """Generate the skillmap for the topic."""
-        self.skills = self.engine.generate_skillmap(self.topic)
-        self.app.call_from_thread(self._skillmap_ready)
+        skills = self.engine.generate_skillmap(self.topic)
+        self.app.call_from_thread(self._skillmap_ready, skills)
 
-    def _skillmap_ready(self) -> None:
+    def _skillmap_ready(self, skills: list[str]) -> None:
         """Called when skillmap is ready."""
-        if not self.skills:
+        if not skills:
             self.notify("Failed to generate skills", severity="error")
             self.app.pop_screen()
             return
 
+        self.session = Session(self.topic, skills)
+
         # Create database session
         with SessionService() as service:
-            self.db_session = service.create_session(self.topic, self.skills)
+            self.db_session = service.create_session(self.topic, skills)
 
         self.query_one("#topic-label").update(f"[bold magenta]{self.topic}[/bold magenta]")
         self._start_skill()
 
     def _start_skill(self) -> None:
         """Start the current skill."""
-        if self.current_skill_index >= len(self.skills):
+        if self.session.is_complete:
             self._complete_topic()
             return
 
-        skill = self.skills[self.current_skill_index]
-        self.query_one("#skill-badge").update(f"[bold]{skill}[/bold]")
-        self.stack.clear()
+        self.query_one("#skill-badge").update(f"[bold]{self.session.current_skill}[/bold]")
+        self.session.start_skill()
         self.generate_question()
 
     @work(thread=True)
     def generate_question(self, prior_question: str | None = None, prior_answer: str | None = None) -> None:
         """Generate a new question."""
-        skill = f"{self.topic}. {self.skills[self.current_skill_index]}"
+        skill_name = self.session.current_skill
+        skill = f"{self.topic}. {skill_name}"
         question = self.engine.generate_question(skill, prior_question, prior_answer)
 
         # Prefetch simpler questions
-        prefetched = self.engine.prefetch_simpler_questions(
-            self.topic, self.skills[self.current_skill_index], question
-        )
+        prefetched = self.engine.prefetch_simpler_questions(self.topic, skill_name, question)
 
         self.app.call_from_thread(self._question_ready, question, prefetched)
 
     def _question_ready(self, question: Question, prefetched: dict[str, Question]) -> None:
         """Called when question is ready."""
-        # Push to stack
-        self.stack.push(question, prefetched)
-        self.prefetched = prefetched
-
-        # Save progress
+        self.session.push_question(question, prefetched)
         self._save_progress()
-
-        # Update UI
         self._display_question()
 
     def _display_question(self) -> None:
         """Display the current question."""
-        question = self.stack.peek()
+        question = self.session.current_question
         if not question:
             return
 
@@ -210,8 +201,7 @@ class QuestionScreen(Screen):
         self.query_one("#question-text").update(question.question_text)
 
         # Update answer buttons
-        entry = self.stack.current_entry()
-        marked = entry.marked_incorrect if entry else []
+        marked = self.session.marked_incorrect
 
         for i, answer in enumerate(self.current_answers):
             button = self.query_one(f"#answer-{i}", Button)
@@ -240,8 +230,8 @@ class QuestionScreen(Screen):
 
     def _update_stats(self) -> None:
         """Update the stats display."""
-        depth = self.stack.depth
-        skill_progress = f"{self.current_skill_index + 1}/{len(self.skills)}"
+        depth = self.session.depth
+        skill_progress = f"{self.session.current_skill_index + 1}/{len(self.session.skills)}"
 
         # Show contextual depth indicator only when drilled down due to incorrect answers
         depth_widget = self.query_one("#stack-depth")
@@ -256,22 +246,17 @@ class QuestionScreen(Screen):
             depth_widget.update("")
             depth_widget.display = False
 
-        accuracy = (
-            f"{self.questions_correct}/{self.questions_answered}"
-            if self.questions_answered > 0
-            else "-"
-        )
-        self.query_one("#stats").update(f"Skill {skill_progress} | Score: {accuracy}")
+        self.query_one("#stats").update(f"Skill {skill_progress} | Score: {self.session.accuracy}")
 
     def _save_progress(self) -> None:
         """Save current progress to database."""
-        if self.db_session:
+        if self.db_session and self.session:
             with SessionService() as service:
                 service.save_progress(
                     self.db_session,
-                    self.current_skill_index,
-                    self.stack,
-                    self.skills,
+                    self.session.current_skill_index,
+                    self.session.stack,
+                    self.session.skills,
                 )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -297,57 +282,48 @@ class QuestionScreen(Screen):
     def _handle_answer(self, index: int) -> None:
         """Handle an answer selection."""
         self.answered = True
-        self.questions_answered += 1
 
         selected = self.current_answers[index]
-        question = self.stack.peek()
         button = self.query_one(f"#answer-{index}", Button)
 
         # Disable all buttons
         for i in range(len(self.current_answers)):
             self.query_one(f"#answer-{i}", Button).disabled = True
 
-        is_correct = self.engine.judge(question, selected)
+        result = self.session.answer(selected)
+        button.add_class("correct" if result.is_correct else "incorrect")
 
-        if is_correct:
-            self.questions_correct += 1
-            button.add_class("correct")
-            self._show_feedback(True)
-        else:
-            button.add_class("incorrect")
-            self.stack.mark_incorrect(selected)
-            self._show_feedback(False, selected)
-
+        self._show_feedback(result)
         self._update_stats()
         self._save_progress()
 
-    def _show_feedback(self, correct: bool, selected_answer: str | None = None) -> None:
-        """Show feedback after answering."""
+    def _show_feedback(self, result: AnswerResult) -> None:
+        """Show feedback and set up the next action based on the answer outcome."""
         feedback = self.query_one("#feedback")
 
-        if correct:
-            feedback.update("[bold green]Correct![/bold green]")
+        if result.is_correct:
             feedback.remove_class("incorrect")
             feedback.add_class("correct")
-
-            # Check if we should pop or complete skill
-            self.stack.pop()
-            if self.stack.is_empty:
-                # Skill complete
+            if result.outcome == Outcome.SKILL_COMPLETE:
+                feedback.update("[bold green]Correct![/bold green]")
                 self._show_skill_complete_actions()
-            else:
-                # Go back to previous question
+            else:  # CLIMB_BACK
                 feedback.update(
                     "[bold green]Correct![/bold green] Let's go back to the earlier question."
                 )
                 self._show_continue_action()
         else:
-            feedback.update(
-                "[bold red]Incorrect.[/bold red] Let's try a simpler question."
-            )
+            feedback.update("[bold red]Incorrect.[/bold red] Let's try a simpler question.")
             feedback.remove_class("correct")
             feedback.add_class("incorrect")
-            self._prepare_simpler_question(selected_answer)
+            if result.outcome == Outcome.DRILL_DOWN:
+                # A prefetched simpler question is already on the stack.
+                self._show_continue_action()
+            else:  # NEEDS_SIMPLER — generate one targeting the misconception.
+                self.query_one("#loading").display = True
+                self.query_one("#loading-label").display = True
+                self.query_one("#question-container").display = False
+                self.generate_question(result.prior_question_text, result.selected_answer)
 
         feedback.display = True
 
@@ -372,23 +348,6 @@ class QuestionScreen(Screen):
             "[bold green]Well done! You've completed this skill.[/bold green]"
         )
 
-    def _prepare_simpler_question(self, selected_answer: str) -> None:
-        """Prepare a simpler question based on the incorrect answer."""
-        # Get prefetched question
-        simpler = self.prefetched.get(selected_answer)
-
-        if simpler:
-            # Use prefetched question
-            self.stack.push(simpler)
-            self._show_continue_action()
-        else:
-            # Generate new simpler question
-            self.query_one("#loading").display = True
-            self.query_one("#loading-label").display = True
-            self.query_one("#question-container").display = False
-            question = self.stack.peek()
-            self.generate_question(question.question_text, selected_answer)
-
     def _continue(self) -> None:
         """Continue to the next question in stack."""
         self._display_question()
@@ -403,8 +362,7 @@ class QuestionScreen(Screen):
 
     def _next_skill(self) -> None:
         """Move to the next skill."""
-        self.current_skill_index += 1
-        self.stack.clear()
+        self.session.advance_skill()
         self._save_progress()
         self._start_skill()
 
