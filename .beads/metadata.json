@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "recque",
+  "project_id": "f9d53328-612a-4e6f-ad6e-37c6181d9100"
+}

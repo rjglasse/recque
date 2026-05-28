@@ -40,3 +40,7 @@ Thumbs.db
 
 # Gas Town polecat runtime (injected by gt, not project files)
 CLAUDE.md
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key
