@@ -144,7 +144,7 @@ class QuestionScreen(Screen):
     def generate_skillmap(self) -> None:
         """Generate the skillmap for the topic."""
         self.skills = self.engine.generate_skillmap(self.topic)
-        self.call_from_thread(self._skillmap_ready)
+        self.app.call_from_thread(self._skillmap_ready)
 
     def _skillmap_ready(self) -> None:
         """Called when skillmap is ready."""
@@ -182,7 +182,7 @@ class QuestionScreen(Screen):
             self.topic, self.skills[self.current_skill_index], question
         )
 
-        self.call_from_thread(self._question_ready, question, prefetched)
+        self.app.call_from_thread(self._question_ready, question, prefetched)
 
     def _question_ready(self, question: Question, prefetched: dict[str, Question]) -> None:
         """Called when question is ready."""

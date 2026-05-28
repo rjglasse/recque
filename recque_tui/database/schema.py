@@ -280,9 +280,14 @@ def get_engine():
 
 
 def get_session_factory():
-    """Get a session factory for the database."""
+    """Get a session factory for the database.
+
+    expire_on_commit=False so ORM instances stay usable after their owning
+    SessionService closes — screens hold a LearningSession across several
+    short-lived service blocks and read its scalar attributes afterwards.
+    """
     engine = get_engine()
-    return sessionmaker(bind=engine)
+    return sessionmaker(bind=engine, expire_on_commit=False)
 
 
 def init_database():
