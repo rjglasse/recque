@@ -1,7 +1,6 @@
-"""Domain logic modules for recque."""
+"""Domain layer — cross-aggregate read models and pure-ish analyses."""
 
-from recque_tui.domain.journey import SessionManager
-from recque_tui.domain.knowledge_graph import KnowledgeGraph
 from recque_tui.domain.analytics import Analytics
+from recque_tui.domain.knowledge_graph import KnowledgeGraph
 
-__all__ = ["SessionManager", "KnowledgeGraph", "Analytics"]
+__all__ = ["KnowledgeGraph", "Analytics"]

@@ -6,7 +6,6 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Static
 
 from recque_tui.database.repositories import JourneyRepository, TopicRepository
-from recque_tui.domain.journey import SessionManager
 
 
 class JourneyScreen(Screen):

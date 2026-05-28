@@ -1,36 +1,7 @@
 """Tests for domain modules."""
 
-import pytest
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import MagicMock, patch
-
-from recque_tui.core.models import Question
-from recque_tui.core.learning_stack import LearningStack
-
-
-class TestSessionManager:
-    """Tests for SessionManager class."""
-
-    @pytest.fixture
-    def mock_db_session(self):
-        """Create a mock database session."""
-        with patch('recque_tui.domain.journey.get_session_factory') as mock_factory:
-            mock_session = MagicMock()
-            mock_factory.return_value = MagicMock(return_value=mock_session)
-            mock_session.__enter__ = MagicMock(return_value=mock_session)
-            mock_session.__exit__ = MagicMock(return_value=None)
-            yield mock_session
-
-    def test_session_manager_context(self, mock_db_session):
-        """Test SessionManager as context manager."""
-        from recque_tui.domain.journey import SessionManager
-
-        with patch('recque_tui.domain.journey.get_session_factory') as mock_factory:
-            mock_session = MagicMock()
-            mock_factory.return_value = MagicMock(return_value=mock_session)
-
-            with SessionManager() as manager:
-                assert manager is not None
 
 
 class TestKnowledgeGraph:

@@ -9,8 +9,8 @@ from textual import work
 from recque_tui.core.learning_stack import LearningStack
 from recque_tui.core.models import Question
 from recque_tui.core.question_engine import QuestionEngine
+from recque_tui.application import SessionService
 from recque_tui.database.schema import LearningSession
-from recque_tui.domain.journey import SessionManager
 
 
 class QuestionScreen(Screen):
@@ -113,8 +113,8 @@ class QuestionScreen(Screen):
 
     def _resume_from_session(self) -> None:
         """Resume from a saved session."""
-        with SessionManager() as manager:
-            state = manager.get_session_state(self.resume_session)
+        with SessionService() as service:
+            state = service.get_session_state(self.resume_session)
             if state:
                 self.topic = state["topic"]
                 self.skills = state["skills"]
@@ -125,7 +125,7 @@ class QuestionScreen(Screen):
                 if state["stack_data"]:
                     self.stack = LearningStack.from_dict(state["stack_data"])
 
-                manager.resume_session(self.resume_session)
+                service.resume_session(self.resume_session)
 
         self.query_one("#topic-label").update(f"[bold magenta]{self.topic}[/bold magenta]")
 
@@ -154,8 +154,8 @@ class QuestionScreen(Screen):
             return
 
         # Create database session
-        with SessionManager() as manager:
-            self.db_session = manager.create_session(self.topic, self.skills)
+        with SessionService() as service:
+            self.db_session = service.create_session(self.topic, self.skills)
 
         self.query_one("#topic-label").update(f"[bold magenta]{self.topic}[/bold magenta]")
         self._start_skill()
@@ -266,8 +266,8 @@ class QuestionScreen(Screen):
     def _save_progress(self) -> None:
         """Save current progress to database."""
         if self.db_session:
-            with SessionManager() as manager:
-                manager.save_progress(
+            with SessionService() as service:
+                service.save_progress(
                     self.db_session,
                     self.current_skill_index,
                     self.stack,
@@ -412,8 +412,8 @@ class QuestionScreen(Screen):
         """Called when all skills are complete."""
         # Mark session as completed
         if self.db_session:
-            with SessionManager() as manager:
-                manager.complete_session(self.db_session)
+            with SessionService() as service:
+                service.complete_session(self.db_session)
 
         self.notify(
             f"Congratulations! You've completed all skills for '{self.topic}'!",
@@ -426,8 +426,8 @@ class QuestionScreen(Screen):
         self._save_progress()
 
         if self.db_session:
-            with SessionManager() as manager:
-                manager.pause_session(self.db_session)
+            with SessionService() as service:
+                service.pause_session(self.db_session)
 
         self.notify("Session paused - you can resume later", severity="information")
         self.app.pop_screen()

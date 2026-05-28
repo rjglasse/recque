@@ -5,7 +5,7 @@ from textual.containers import Container, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Label, Static
 
-from recque_tui.domain.journey import SessionManager
+from recque_tui.application import SessionService
 
 
 class SessionPickerScreen(ModalScreen):
@@ -45,8 +45,8 @@ class SessionPickerScreen(ModalScreen):
 
     def _load_sessions(self) -> None:
         """Load resumable sessions from database."""
-        with SessionManager() as manager:
-            self.sessions = manager.get_resumable_sessions()
+        with SessionService() as service:
+            self.sessions = service.get_resumable_sessions()
 
         # Remove loading message
         loading = self.query_one("#sessions-loading")

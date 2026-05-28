@@ -11,7 +11,7 @@ from recque_tui.database.schema import (
     get_or_create_default_user,
     get_session_factory,
 )
-from recque_tui.domain.journey import SessionManager
+from recque_tui.application import SessionService
 
 
 class ProgressScreen(Screen):
@@ -170,8 +170,8 @@ class ProgressScreen(Screen):
 
     def _load_history(self) -> None:
         """Load recent session history."""
-        with SessionManager() as manager:
-            completed = manager.get_completed_sessions(limit=5)
+        with SessionService() as service:
+            completed = service.get_completed_sessions(limit=5)
 
         # Remove loading
         loading = self.query_one("#history-loading")
