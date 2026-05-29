@@ -1,11 +1,19 @@
 """Tests for database/repositories.py."""
 
 import json
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from recque_tui.core.models import Question as QuestionModel
+from recque_tui.database.repositories import (
+    JourneyRepository,
+    ProgressRepository,
+    QuestionRepository,
+    SessionRepository,
+    TopicRepository,
+)
 from recque_tui.database.schema import (
     Base,
     CachedQuestion,
@@ -14,13 +22,6 @@ from recque_tui.database.schema import (
     Topic,
     TopicMastery,
     User,
-)
-from recque_tui.database.repositories import (
-    JourneyRepository,
-    ProgressRepository,
-    QuestionRepository,
-    SessionRepository,
-    TopicRepository,
 )
 
 
@@ -35,8 +36,8 @@ def in_memory_engine():
 @pytest.fixture
 def db_session(in_memory_engine):
     """Create a test database session."""
-    Session = sessionmaker(bind=in_memory_engine)
-    session = Session()
+    session_factory = sessionmaker(bind=in_memory_engine)
+    session = session_factory()
     yield session
     session.rollback()
     session.close()
@@ -224,8 +225,6 @@ class TestSessionRepository:
 
     def test_create_session(self, db_session, test_user, test_topic):
         """Test creating a learning session."""
-        repo = SessionRepository(db_session)
-
         # Manually set up user lookup since we're not using the real default
         session = LearningSession(
             user_id=test_user.id,

@@ -54,6 +54,8 @@ packages = ["recque_tui", "recque_web"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# legacy/ holds preserved pre-TUI prototypes — kept as-is, not linted.
+extend-exclude = ["legacy"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]

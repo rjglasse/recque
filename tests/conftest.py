@@ -30,8 +30,8 @@ def db_engine(temp_db_path):
 @pytest.fixture
 def db_session(db_engine):
     """Create a test database session."""
-    Session = sessionmaker(bind=db_engine)
-    session = Session()
+    session_factory = sessionmaker(bind=db_engine)
+    session = session_factory()
     yield session
     session.rollback()
     session.close()

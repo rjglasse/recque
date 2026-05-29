@@ -137,7 +137,6 @@ class Analytics:
                     continue
 
                 # Get attempts for this topic's skills
-                skill_ids = [s.id for s in topic.skills]
                 attempts = (
                     db.query(QuestionAttempt)
                     .join(LearningSession)

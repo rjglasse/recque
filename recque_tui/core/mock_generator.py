@@ -4,7 +4,7 @@ import random
 from dataclasses import dataclass, field
 from typing import ClassVar
 
-from recque_tui.core.models import Question, SkillMap, Review
+from recque_tui.core.models import Question, Review, SkillMap
 
 
 @dataclass
@@ -876,9 +876,9 @@ class MockGenerator:
                 "question_text": f"When encountering a problem that requires {core_skill}, what is the most effective first step?",
                 "correct_answer": f"Break the problem down and identify which specific aspect of {core_skill} applies",
                 "incorrect_answers": [
-                    f"Search for a complete solution to copy",
-                    f"Try random approaches until something works",
-                    f"Skip it and come back later when you know more",
+                    "Search for a complete solution to copy",
+                    "Try random approaches until something works",
+                    "Skip it and come back later when you know more",
                 ],
                 "explanation": f"Decomposing the problem reveals which parts of {core_skill} are relevant. Copying solutions skips learning, trial-and-error is inefficient, and avoidance prevents growth.",
             },
@@ -896,29 +896,29 @@ class MockGenerator:
                 "question_text": f"You're explaining {core_skill} to a peer and they say 'I think I get it.' What should you do next?",
                 "correct_answer": f"Ask them to solve a small problem using {core_skill} — application reveals gaps that passive understanding hides",
                 "incorrect_answers": [
-                    f"Move on to the next topic since they confirmed understanding",
-                    f"Repeat the same explanation more slowly",
-                    f"Give them a list of resources to read on their own",
+                    "Move on to the next topic since they confirmed understanding",
+                    "Repeat the same explanation more slowly",
+                    "Give them a list of resources to read on their own",
                 ],
                 "explanation": f"'I think I get it' often means surface-level recognition, not genuine understanding. Having someone apply {core_skill} to a concrete problem quickly reveals misconceptions.",
             },
             {
                 "question_text": f"If you had to rank the following approaches to learning {core_skill}, which order would be most effective?",
-                "correct_answer": f"Understand the 'why' first, then practice with examples, then tackle edge cases",
+                "correct_answer": "Understand the 'why' first, then practice with examples, then tackle edge cases",
                 "incorrect_answers": [
-                    f"Memorize rules first, then understand them later through practice",
-                    f"Start with the hardest examples to build resilience, then review basics",
-                    f"Read all available documentation before attempting any practice",
+                    "Memorize rules first, then understand them later through practice",
+                    "Start with the hardest examples to build resilience, then review basics",
+                    "Read all available documentation before attempting any practice",
                 ],
                 "explanation": f"Understanding motivation ('why does {core_skill} exist?') creates a framework. Practice with examples builds fluency. Edge cases develop mastery. This progression matches how expertise actually develops.",
             },
             {
                 "question_text": f"A student makes an error while practicing {core_skill}. From a learning perspective, what is the most valuable next step?",
-                "correct_answer": f"Analyze why the error happened and identify the specific concept they misunderstood",
+                "correct_answer": "Analyze why the error happened and identify the specific concept they misunderstood",
                 "incorrect_answers": [
-                    f"Simply correct the error and move on to the next exercise",
-                    f"Repeat the same exercise until they get it right by chance",
-                    f"Switch to an easier topic to rebuild confidence first",
+                    "Simply correct the error and move on to the next exercise",
+                    "Repeat the same exercise until they get it right by chance",
+                    "Switch to an easier topic to rebuild confidence first",
                 ],
                 "explanation": f"Errors in {core_skill} are diagnostic — they reveal exactly which prerequisite concept is shaky. Analyzing the 'why' behind the mistake is more valuable than the correction itself.",
             },

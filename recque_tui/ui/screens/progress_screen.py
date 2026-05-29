@@ -5,13 +5,13 @@ from textual.containers import Container, Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Footer, Header, Static
 
+from recque_tui.application import SessionService
 from recque_tui.database.schema import (
     Topic,
     TopicMastery,
     get_or_create_default_user,
     get_session_factory,
 )
-from recque_tui.application import SessionService
 
 
 class ProgressScreen(Screen):
