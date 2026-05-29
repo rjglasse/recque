@@ -264,8 +264,8 @@ class QuestionScreen(Screen):
         button_id = event.button.id
 
         if button_id and button_id.startswith("answer-"):
-            if not self.answered:
-                index = int(button_id.split("-")[1])
+            index = int(button_id.split("-")[1])
+            if not self.answered and index < len(self.current_answers):
                 self._handle_answer(index)
         elif button_id == "continue-btn":
             self._continue()

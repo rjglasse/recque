@@ -100,6 +100,32 @@ async def test_full_recursive_flow(isolated_env):
 
 
 @pytest.mark.asyncio
+async def test_answer_click_before_question_loads_is_a_noop(isolated_env):
+    """Regression (recque-gsf): pressing an answer button before the first
+    question has loaded must not crash. The buttons are created in compose()
+    and there is a paint window (Textual 6.11) before generation populates
+    current_answers; #question-container is hidden by default so the buttons
+    are not clickable, and on_button_pressed bounds-guards as a backstop."""
+    async with _Host().run_test() as pilot:
+        screen = _screen(pilot)
+        # Frame 0: container hidden, no answers loaded yet.
+        assert isinstance(screen, QuestionScreen)
+        assert screen.current_answers == []
+        assert screen.query_one("#question-container").display is False
+
+        # Mouse path (no bounds check historically) must be a safe no-op.
+        btn = screen.query_one("#answer-0", Button)
+        screen.on_button_pressed(Button.Pressed(btn))  # would IndexError pre-fix
+        assert screen.answered is False
+
+        # Once the question loads, the container shows and clicks register.
+        await _settle(pilot, lambda: _question_visible(pilot), "first question")
+        assert screen.query_one("#question-container").display
+        screen.on_button_pressed(Button.Pressed(screen.query_one("#answer-0", Button)))
+        assert screen.answered is True
+
+
+@pytest.mark.asyncio
 async def test_needs_simpler_regenerates_with_prefetch(isolated_env, monkeypatch):
     """NEEDS_SIMPLER -> generate -> _question_ready must push the regenerated
     question WITH its prefetch, so the next wrong answer would drill down rather
