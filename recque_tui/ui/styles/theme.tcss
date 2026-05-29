@@ -147,9 +147,11 @@ Button.-primary:hover {
     background: transparent;
 }
 
+/* An answer the learner already ruled out — dimmed and softly tinted,
+   not struck through (a strike on a faint single line reads as a stray bar). */
 .answer-button.marked-wrong {
-    opacity: 0.4;
-    text-style: strike;
+    color: $error;
+    opacity: 0.55;
 }
 
 /* Feedback — a quiet line of muted text, not a coloured banner. */
