@@ -110,12 +110,16 @@ Button.-primary:hover {
     display: none;
 }
 
+/* Question text, with a quiet separator dividing it from the answers. */
 .question-text {
     color: $text;
+    padding-bottom: 1;
     margin-bottom: 1;
+    border-bottom: solid $surface-lighten-2;
 }
 
-/* Answer buttons — flat rows, left-aligned, restrained. */
+/* Answer buttons — flat, left-aligned rows. content-align (not text-align)
+   governs a Button's label placement in Textual. */
 .answer-button {
     width: 100%;
     height: 1;
@@ -123,6 +127,7 @@ Button.-primary:hover {
     background: transparent;
     color: $text-muted;
     border: none;
+    content-align: left middle;
     text-align: left;
     padding: 0 2;
 }
