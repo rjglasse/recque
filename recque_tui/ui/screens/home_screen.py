@@ -1,9 +1,9 @@
 """Home screen for recque TUI."""
 
 from textual.app import ComposeResult
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Container, Vertical
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Input, Label, Static
+from textual.widgets import Button, Footer, Header, Input, Static
 
 
 class HomeScreen(Screen):

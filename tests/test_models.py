@@ -1,6 +1,5 @@
 """Tests for core/models.py."""
 
-import pytest
 
 from recque_tui.core.models import (
     Question,

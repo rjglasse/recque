@@ -1,6 +1,5 @@
 """Tests for mock generator and AI client mock mode."""
 
-import pytest
 from unittest.mock import patch, MagicMock
 
 from recque_tui.core.models import Question, SkillMap, Review

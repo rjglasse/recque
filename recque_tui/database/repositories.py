@@ -2,7 +2,6 @@
 
 import json
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -16,7 +15,6 @@ from recque_tui.database.schema import (
     Skill,
     Topic,
     TopicMastery,
-    TopicPrerequisite,
     User,
     get_or_create_default_user,
     get_session_factory,

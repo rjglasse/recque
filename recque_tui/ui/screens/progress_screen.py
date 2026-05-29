@@ -1,9 +1,9 @@
 """Progress screen showing learning progress and mastery."""
 
 from textual.app import ComposeResult
-from textual.containers import Container, Grid, Horizontal, Vertical
+from textual.containers import Container, Horizontal, Vertical
 from textual.screen import Screen
-from textual.widgets import Footer, Header, ProgressBar, Static
+from textual.widgets import Footer, Header, Static
 
 from recque_tui.database.schema import (
     Topic,

@@ -1,7 +1,7 @@
 """Journey screen for browsing and managing learning journeys."""
 
 from textual.app import ComposeResult
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Container, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Static
 

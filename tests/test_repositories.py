@@ -9,7 +9,6 @@ from recque_tui.core.models import Question as QuestionModel
 from recque_tui.database.schema import (
     Base,
     CachedQuestion,
-    LearningJourney,
     LearningSession,
     Skill,
     Topic,

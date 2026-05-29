@@ -1,6 +1,6 @@
 """Main Textual application for recque."""
 
-from textual.app import App, ComposeResult
+from textual.app import App
 from textual.binding import Binding
 
 from recque_tui.database.repositories import initialize_database
