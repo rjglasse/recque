@@ -27,7 +27,7 @@ class ProgressScreen(Screen):
 
         with Container(id="content"):
             yield Static(
-                "[bold magenta]Learning Progress[/bold magenta]",
+                "[bold]Learning Progress[/bold]",
                 id="title",
             )
 

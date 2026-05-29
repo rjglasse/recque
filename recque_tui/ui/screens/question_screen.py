@@ -125,14 +125,14 @@ class QuestionScreen(Screen):
             # No saved state — nothing to resume.
             self.session = Session(self.topic, [])
 
-        self.query_one("#topic-label").update(f"[bold magenta]{self.topic}[/bold magenta]")
+        self.query_one("#topic-label").update(f"[bold]{self.topic}[/bold]")
 
         if self.session.depth == 0:
             # Need to generate a new question
             self._start_skill()
         else:
             # Resume with existing stack
-            self.query_one("#skill-badge").update(f"[bold]{self.session.current_skill}[/bold]")
+            self.query_one("#skill-badge").update(f"{self.session.current_skill}")
             self.query_one("#loading").display = False
             self.query_one("#loading-label").display = False
             self._display_question()
@@ -156,7 +156,7 @@ class QuestionScreen(Screen):
         with SessionService() as service:
             self.db_session = service.create_session(self.topic, skills)
 
-        self.query_one("#topic-label").update(f"[bold magenta]{self.topic}[/bold magenta]")
+        self.query_one("#topic-label").update(f"[bold]{self.topic}[/bold]")
         self._start_skill()
 
     def _start_skill(self) -> None:
@@ -165,7 +165,7 @@ class QuestionScreen(Screen):
             self._complete_topic()
             return
 
-        self.query_one("#skill-badge").update(f"[bold]{self.session.current_skill}[/bold]")
+        self.query_one("#skill-badge").update(f"{self.session.current_skill}")
         self.session.start_skill()
         self.generate_question()
 
@@ -239,7 +239,7 @@ class QuestionScreen(Screen):
             levels_deep = depth - 1
             level_word = "level" if levels_deep == 1 else "levels"
             depth_widget.update(
-                f"[yellow]{levels_deep} {level_word} deep — answer correctly to climb back[/yellow]"
+                f"{levels_deep} {level_word} deep — answer correctly to climb back"
             )
             depth_widget.display = True
         else:
@@ -305,15 +305,15 @@ class QuestionScreen(Screen):
             feedback.remove_class("incorrect")
             feedback.add_class("correct")
             if result.outcome == Outcome.SKILL_COMPLETE:
-                feedback.update("[bold green]Correct![/bold green]")
+                feedback.update("Correct.")
                 self._show_skill_complete_actions()
             else:  # CLIMB_BACK
                 feedback.update(
-                    "[bold green]Correct![/bold green] Let's go back to the earlier question."
+                    "Correct. Let's go back to the earlier question."
                 )
                 self._show_continue_action()
         else:
-            feedback.update("[bold red]Incorrect.[/bold red] Let's try a simpler question.")
+            feedback.update("Incorrect. Let's try a simpler question.")
             feedback.remove_class("correct")
             feedback.add_class("incorrect")
             if result.outcome == Outcome.DRILL_DOWN:
@@ -345,7 +345,7 @@ class QuestionScreen(Screen):
 
         feedback = self.query_one("#feedback")
         feedback.update(
-            "[bold green]Well done! You've completed this skill.[/bold green]"
+            "Well done — you've completed this skill."
         )
 
     def _continue(self) -> None:

@@ -1,119 +1,191 @@
-/* RecQue TUI Theme */
+/* RecQue TUI Theme — calm, minimal, restrained.
+   Near-monochrome: lean on Textual's adaptive $surface/$text vars, with a
+   single soft accent and muted semantic hints. No filled colour blocks, no
+   chunky boxes — flat elements, quiet borders, generous breathing room. */
 
-/* Base colors matching original CLI: magenta, green, red */
-$primary: magenta;
-$success: green;
-$error: red;
-$surface: $surface;
-$background: $background;
+/* Muted, low-saturation palette layered over the adaptive theme vars. */
+$primary: #8aa0b3;   /* soft slate-blue — used sparingly as the one accent */
+$success: #8faa8b;   /* muted sage */
+$error:   #c2908f;   /* dusty rose */
+$accent:  #8aa0b3;
 
-/* App-wide styles */
+/* App-wide */
 Screen {
     background: $background;
 }
 
-/* Header styling */
-#header {
-    dock: top;
-    height: 3;
-    background: $primary;
-    color: $text;
-    text-align: center;
-    padding: 1;
-}
-
-/* Footer styling */
-#footer {
-    dock: bottom;
-    height: 1;
+/* Built-in Header/Footer — keep them quiet, no loud accent bar. */
+Header {
     background: $surface;
+    color: $text-muted;
+    text-style: none;
 }
 
-/* Main content area */
+Footer {
+    background: $surface;
+    color: $text-muted;
+}
+
+/* Mute the footer key chips — no bright amber accent. */
+FooterKey {
+    background: $surface;
+    color: $text-muted;
+}
+
+FooterKey .footer-key--key {
+    background: $surface;
+    color: $primary;
+    text-style: none;
+}
+
+FooterKey .footer-key--description {
+    background: $surface;
+    color: $text-muted;
+}
+
+FooterKey:hover {
+    background: $surface-lighten-1;
+}
+
+/* Main content area — room to breathe. */
 #content {
-    padding: 1 2;
+    padding: 1 3;
 }
 
-/* Topic input */
+/* Inputs */
 .topic-input {
     width: 100%;
     margin: 1 0;
+    border: round $surface-lighten-2;
+    background: transparent;
 }
 
-/* Question card */
+.topic-input:focus {
+    border: round $primary;
+}
+
+/* Buttons — flat, single-line, list-like. No raised boxes or loud variants. */
+Button {
+    height: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    color: $text-muted;
+    padding: 0 2;
+    text-style: none;
+}
+
+Button:hover {
+    background: $surface-lighten-1;
+    color: $text;
+}
+
+Button:focus {
+    color: $text;
+    text-style: none;
+}
+
+Button.-primary {
+    background: transparent;
+    color: $primary;
+}
+
+Button.-primary:hover {
+    background: $surface-lighten-1;
+    color: $primary;
+}
+
+/* Question card — a quiet frame, not a heavy bordered box. */
 .question-card {
-    border: solid $primary;
+    border: round $surface-lighten-2;
     padding: 1 2;
     margin: 1 0;
-    background: $surface;
+    background: transparent;
+}
+
+/* Hidden until a question is loaded — prevents clicking default answer
+   buttons during the pre-generation paint window (see recque-gsf).
+   _display_question sets `display = True` inline, overriding this rule. */
+#question-container {
+    display: none;
 }
 
 .question-text {
-    text-style: bold;
+    color: $text;
     margin-bottom: 1;
 }
 
-/* Answer buttons */
+/* Answer buttons — flat rows, left-aligned, restrained. */
 .answer-button {
     width: 100%;
+    height: 1;
     margin: 0 0 1 0;
-    min-height: 3;
+    background: transparent;
+    color: $text-muted;
+    border: none;
+    text-align: left;
+    padding: 0 2;
 }
 
 .answer-button:hover {
-    background: $primary 20%;
+    background: $surface-lighten-1;
+    color: $text;
 }
 
+.answer-button:focus {
+    color: $text;
+}
+
+/* Semantic state via text colour only — no fills, no borders. */
 .answer-button.correct {
-    background: $success 30%;
-    border: solid $success;
+    color: $success;
+    background: transparent;
 }
 
 .answer-button.incorrect {
-    background: $error 30%;
-    border: solid $error;
+    color: $error;
+    background: transparent;
 }
 
 .answer-button.marked-wrong {
-    opacity: 0.5;
+    opacity: 0.4;
     text-style: strike;
 }
 
-/* Feedback messages */
+/* Feedback — a quiet line of muted text, not a coloured banner. */
 .feedback {
-    padding: 1;
+    padding: 0 2;
     margin: 1 0;
-    text-align: center;
+    text-align: left;
+    color: $text-muted;
+    background: transparent;
 }
 
 .feedback.correct {
-    background: $success 20%;
     color: $success;
-    border: solid $success;
+    background: transparent;
 }
 
 .feedback.incorrect {
-    background: $error 20%;
     color: $error;
-    border: solid $error;
+    background: transparent;
 }
 
-/* Progress indicators */
+/* Progress indicators — plain muted text, no badge fill. */
 .skill-badge {
-    background: $primary;
+    background: transparent;
     color: $text;
-    padding: 0 1;
-    margin-right: 1;
+    padding: 0;
+    margin-right: 2;
 }
 
 .stack-depth {
-    color: $primary;
+    color: $text-muted;
 }
 
 /* Stats panel */
 .stats-panel {
-    border: solid $surface-lighten-2;
-    padding: 1;
+    padding: 1 0;
     margin: 1 0;
 }
 
@@ -122,21 +194,21 @@ Screen {
 }
 
 .stat-value {
-    text-style: bold;
+    color: $text;
 }
 
 /* Menu items */
 .menu-item {
-    padding: 1 2;
-    margin: 0 0 1 0;
+    padding: 0 2;
+    margin: 0;
 }
 
 .menu-item:hover {
-    background: $primary 20%;
+    background: $surface-lighten-1;
 }
 
 .menu-item:focus {
-    background: $primary 30%;
+    background: $surface-lighten-1;
 }
 
 /* Loading indicator */
@@ -148,8 +220,7 @@ Screen {
 
 /* Session list */
 .session-item {
-    padding: 1;
-    border: solid $surface-lighten-1;
+    padding: 0 2;
     margin-bottom: 1;
 }
 
@@ -159,21 +230,22 @@ Screen {
 
 /* Journey list */
 .journey-card {
-    border: solid $primary;
+    border: round $surface-lighten-2;
     padding: 1;
     margin: 1 0;
+    background: transparent;
 }
 
 /* Analytics */
 .metric-card {
-    border: solid $surface-lighten-2;
+    border: round $surface-lighten-2;
     padding: 1;
     margin: 0 1 1 0;
     min-width: 20;
+    background: transparent;
 }
 
 .metric-value {
-    text-style: bold;
     color: $primary;
 }
 
@@ -188,12 +260,13 @@ Screen {
     height: auto;
     max-height: 80%;
     background: $surface;
-    border: solid $primary;
+    border: round $surface-lighten-2;
     padding: 1 2;
 }
 
 #picker-title {
     text-align: center;
+    color: $text;
     margin-bottom: 1;
 }
 
@@ -215,8 +288,9 @@ Screen {
     padding: 1;
 }
 
-/* Section headers */
+/* Section headers — quiet, lowercase-feel separators. */
 .section-header {
+    color: $text-muted;
     margin-top: 1;
     margin-bottom: 0;
 }

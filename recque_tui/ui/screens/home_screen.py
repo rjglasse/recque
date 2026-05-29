@@ -19,7 +19,7 @@ class HomeScreen(Screen):
 
         with Container(id="content"):
             yield Static(
-                "[bold magenta]RecQue[/bold magenta] - Recursive Questioning",
+                "[bold]RecQue[/bold] - Recursive Questioning",
                 id="title",
             )
             yield Static(

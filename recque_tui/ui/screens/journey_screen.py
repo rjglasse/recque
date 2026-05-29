@@ -21,7 +21,7 @@ class JourneyScreen(Screen):
 
         with Container(id="content"):
             yield Static(
-                "[bold magenta]Learning Journeys[/bold magenta]",
+                "[bold]Learning Journeys[/bold]",
                 id="title",
             )
             yield Static(
