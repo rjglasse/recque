@@ -186,8 +186,11 @@ Button.-primary:hover {
     margin-right: 2;
 }
 
-.stack-depth {
-    color: $text-muted;
+/* Recursive-descent progress skyline (upper region). */
+.progress-map {
+    height: auto;
+    margin: 1 0 0 0;
+    padding: 0 1;
 }
 
 /* Stats panel */

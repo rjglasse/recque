@@ -11,6 +11,7 @@ from recque_tui.core.models import Question
 from recque_tui.core.question_engine import QuestionEngine
 from recque_tui.core.session import AnswerResult, Outcome, Session
 from recque_tui.database.schema import LearningSession
+from recque_tui.ui.widgets.progress_map import ProgressMap
 
 
 class QuestionScreen(Screen):
@@ -61,8 +62,10 @@ class QuestionScreen(Screen):
             # Skill badge and stats
             with Horizontal(id="top-bar"):
                 yield Static("", id="skill-badge", classes="skill-badge")
-                yield Static("", id="stack-depth", classes="stack-depth")
                 yield Static("", id="stats")
+
+            # Recursive-descent progress skyline
+            yield ProgressMap(id="progress-map", classes="progress-map")
 
             # Loading indicator (shown while generating)
             yield LoadingIndicator(id="loading")
@@ -117,6 +120,7 @@ class QuestionScreen(Screen):
                     state["skills"],
                     state["current_skill_index"],
                     state["stack_data"],
+                    state.get("descent_depths"),
                 )
                 self.db_session = self.resume_session
                 service.resume_session(self.resume_session)
@@ -229,24 +233,15 @@ class QuestionScreen(Screen):
         self.query_one("#actions").display = False
 
     def _update_stats(self) -> None:
-        """Update the stats display."""
-        depth = self.session.depth
+        """Update the stats display and the progress skyline."""
         skill_progress = f"{self.session.current_skill_index + 1}/{len(self.session.skills)}"
-
-        # Show contextual depth indicator only when drilled down due to incorrect answers
-        depth_widget = self.query_one("#stack-depth")
-        if depth > 1:
-            levels_deep = depth - 1
-            level_word = "level" if levels_deep == 1 else "levels"
-            depth_widget.update(
-                f"{levels_deep} {level_word} deep — answer correctly to climb back"
-            )
-            depth_widget.display = True
-        else:
-            depth_widget.update("")
-            depth_widget.display = False
-
         self.query_one("#stats").update(f"Skill {skill_progress} | Score: {self.session.accuracy}")
+        self._update_progress_map()
+
+    def _update_progress_map(self) -> None:
+        """Refresh the recursive-descent skyline from the session."""
+        if self.session:
+            self.query_one("#progress-map", ProgressMap).update_view(self.session.progress_view())
 
     def _save_progress(self) -> None:
         """Save current progress to database."""
@@ -257,6 +252,7 @@ class QuestionScreen(Screen):
                     self.session.current_skill_index,
                     self.session.stack,
                     self.session.skills,
+                    self.session.current_descent_depth,
                 )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

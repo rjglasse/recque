@@ -361,3 +361,42 @@ class TestTopicMasteryModel:
 
         assert mastery.mastery_level == 0.75
         assert mastery.questions_answered == 20
+
+
+class TestLightweightMigration:
+    """The additive ALTER-if-missing migration for pre-existing databases."""
+
+    def test_adds_descent_depth_to_legacy_table(self):
+        from sqlalchemy import inspect, text
+
+        from recque_tui.database.schema import _run_lightweight_migrations
+
+        engine = create_engine("sqlite:///:memory:", echo=False)
+        # A pre-existing session_progress table WITHOUT the descent_depth column.
+        with engine.begin() as conn:
+            conn.execute(text(
+                "CREATE TABLE session_progress ("
+                "id INTEGER PRIMARY KEY, session_id INTEGER, skill_id INTEGER, "
+                "stack_state_json TEXT, skill_completed BOOLEAN, completed_at DATETIME)"
+            ))
+            conn.execute(text("INSERT INTO session_progress (id) VALUES (1)"))
+
+        _run_lightweight_migrations(engine)
+
+        cols = {c["name"] for c in inspect(engine).get_columns("session_progress")}
+        assert "descent_depth" in cols
+        with engine.connect() as conn:
+            value = conn.execute(text("SELECT descent_depth FROM session_progress WHERE id=1")).scalar()
+        assert value == 0   # existing rows default to 0
+
+    def test_migration_is_idempotent(self):
+        from sqlalchemy import inspect
+
+        from recque_tui.database.schema import _run_lightweight_migrations
+
+        # create_all already includes descent_depth; running the migration is a no-op.
+        engine = create_engine("sqlite:///:memory:", echo=False)
+        Base.metadata.create_all(engine)
+        _run_lightweight_migrations(engine)  # must not raise
+        cols = {c["name"] for c in inspect(engine).get_columns("session_progress")}
+        assert "descent_depth" in cols

@@ -74,8 +74,13 @@ class SessionService:
         current_skill_index: int,
         stack: LearningStack,
         skills: list[str],
+        descent_depth: int = 0,
     ) -> None:
-        """Persist the learner's current position and stack for resume."""
+        """Persist the learner's current position and stack for resume.
+
+        `descent_depth` is the max stack depth reached for this skill — the
+        height of its progress-skyline column.
+        """
         topic = self._db.get(Topic, session.topic_id)
         if not topic:
             return
@@ -106,6 +111,7 @@ class SessionService:
 
         progress.stack_state_json = json.dumps(stack.to_dict())
         progress.skill_completed = stack.is_empty
+        progress.descent_depth = max(descent_depth, progress.descent_depth or 0)
         if progress.skill_completed:
             progress.completed_at = datetime.utcnow()
 
@@ -167,6 +173,8 @@ class SessionService:
 
         current_skill_index = 0
         stack_data: list[dict] = []
+        descent_depths: list[int] = []
+        found_current = False
 
         for i, skill in enumerate(skills):
             progress = (
@@ -174,21 +182,25 @@ class SessionService:
                 .filter_by(session_id=session.id, skill_id=skill.id)
                 .first()
             )
+            descent_depths.append(progress.descent_depth if progress else 0)
+            if found_current:
+                continue
             if progress:
                 if not progress.skill_completed:
                     current_skill_index = i
                     if progress.stack_state_json:
                         stack_data = json.loads(progress.stack_state_json)
-                    break
+                    found_current = True
             else:
                 current_skill_index = i
-                break
+                found_current = True
 
         return {
             "topic": topic.name,
             "skills": [s.name for s in skills],
             "current_skill_index": current_skill_index,
             "stack_data": stack_data,
+            "descent_depths": descent_depths,
         }
 
     def get_completed_sessions(self, limit: int = 10) -> list[dict]:

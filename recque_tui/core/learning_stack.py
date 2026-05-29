@@ -107,6 +107,14 @@ class LearningStack:
         if self._stack:
             self._stack[-1].prefetched = prefetched
 
+    def wrong_flags(self) -> list[bool]:
+        """Per-level flags: True where that level has a recorded wrong answer.
+
+        Indexed from the bottom (the main question) to the top (current). Used
+        by the progress view to colour each level of the live descent.
+        """
+        return [bool(entry.marked_incorrect) for entry in self._stack]
+
     @property
     def depth(self) -> int:
         """Get the current stack depth."""

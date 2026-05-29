@@ -71,6 +71,36 @@ class TestSessionServiceProgress:
         assert len(state["stack_data"]) == 1
         assert state["stack_data"][0]["question"]["question_text"] == "Q1?"
 
+    def test_descent_depth_persists_and_restores_per_skill(self, db_session):
+        service = SessionService(db_session)
+        skills = ["s1", "s2", "s3"]
+        session = service.create_session("Topic", skills)
+
+        # s1 completed at column height 3 (empty stack -> completed).
+        service.save_progress(session, 0, LearningStack(), skills, descent_depth=3)
+        # s2 in progress at column height 2.
+        stack = LearningStack()
+        stack.push(Question(
+            question_text="Q2?", correct_answer="y", incorrect_answers=["n", "m", "o"],
+        ))
+        service.save_progress(session, 1, stack, skills, descent_depth=2)
+
+        state = service.get_session_state(session)
+        assert state["current_skill_index"] == 1
+        assert state["descent_depths"] == [3, 2, 0]   # s3 untouched -> 0
+
+    def test_descent_depth_never_shrinks_on_save(self, db_session):
+        service = SessionService(db_session)
+        session = service.create_session("Topic", ["s1"])
+        stack = LearningStack()
+        stack.push(Question(question_text="Q?", correct_answer="y", incorrect_answers=["a", "b", "c"]))
+
+        service.save_progress(session, 0, stack, ["s1"], descent_depth=3)
+        service.save_progress(session, 0, stack, ["s1"], descent_depth=1)  # transient lower value
+
+        state = service.get_session_state(session)
+        assert state["descent_depths"] == [3]   # monotonic — keeps the recorded skyline
+
     def test_empty_stack_marks_skill_completed(self, db_session):
         service = SessionService(db_session)
         session = service.create_session("Topic", ["skill1"])

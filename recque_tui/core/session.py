@@ -10,7 +10,7 @@ and reports it via `AnswerResult`.
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 
 from recque_tui.core.learning_stack import LearningStack
@@ -26,6 +26,28 @@ class Outcome(Enum):
     SKILL_COMPLETE = auto()  # Correct: the stack emptied, the skill is done.
     DRILL_DOWN = auto()      # Wrong: a prefetched simpler question is now on top.
     NEEDS_SIMPLER = auto()   # Wrong: no prefetch — caller must generate a simpler question.
+
+
+class BoxState(Enum):
+    """State of one box (level) in a skill's progress column."""
+
+    PENDING = "pending"  # not yet answered
+    WRONG = "wrong"      # answered incorrectly (and drilled deeper)
+    CORRECT = "correct"  # answered correctly / resolved
+
+
+@dataclass
+class SkillColumn:
+    """One skill's column in the progress skyline.
+
+    `boxes` runs top (the main question) to bottom (the deepest level reached).
+    `active` is the index of the box the learner is currently on, or None when
+    the skill isn't the active one.
+    """
+
+    label: str
+    boxes: list[BoxState] = field(default_factory=list)
+    active: int | None = None
 
 
 @dataclass
@@ -53,6 +75,7 @@ class Session:
         skills: list[str],
         current_skill_index: int = 0,
         stack: LearningStack | None = None,
+        descent_depths: list[int] | None = None,
     ):
         self.topic = topic
         self.skills = skills
@@ -60,6 +83,12 @@ class Session:
         self._stack = stack if stack is not None else LearningStack()
         self.questions_answered = 0
         self.questions_correct = 0
+        # Per-skill max stack depth ever reached — the height of each skill's
+        # progress column. The whole skyline derives from this plus the live
+        # stack (see progress_view).
+        self._max_depth = list(descent_depths) if descent_depths else [0] * len(skills)
+        if len(self._max_depth) < len(skills):
+            self._max_depth += [0] * (len(skills) - len(self._max_depth))
 
     @classmethod
     def restore(
@@ -68,13 +97,15 @@ class Session:
         skills: list[str],
         current_skill_index: int,
         stack_data: list[dict] | None,
+        descent_depths: list[int] | None = None,
     ) -> "Session":
         """Rebuild a Session from persisted state (see SessionService.get_session_state).
 
         Counters are not persisted, so they reset on resume — matching prior behavior.
+        `descent_depths` restores each skill's column height for the skyline.
         """
         stack = LearningStack.from_dict(stack_data) if stack_data else LearningStack()
-        return cls(topic, skills, current_skill_index, stack)
+        return cls(topic, skills, current_skill_index, stack, descent_depths)
 
     # --- Stack-feeding -----------------------------------------------------
 
@@ -87,6 +118,7 @@ class Session:
         `answer()`, which is why there is no separate `push_simpler`.
         """
         self._stack.push(question, prefetched)
+        self._record_depth()
 
     # --- The core mechanic -------------------------------------------------
 
@@ -115,6 +147,7 @@ class Session:
         simpler = self._stack.get_prefetched(selected)
         if simpler is not None:
             self._stack.push(simpler)
+            self._record_depth()
             logger.info("Answer wrong — drilling down to prefetched question")
             return AnswerResult(False, Outcome.DRILL_DOWN, next_question=simpler)
 
@@ -141,6 +174,71 @@ class Session:
         self.current_skill_index += 1
         self._stack.clear()
         return not self.is_complete
+
+    # --- Progress skyline --------------------------------------------------
+
+    def _record_depth(self) -> None:
+        """Update the current skill's column height after a push.
+
+        Called only on pushes. A push that lands at depth 1 is a fresh main
+        question, so the column resets to a single box; deeper pushes only
+        ever extend the recorded maximum (climb-backs never call this).
+        """
+        i = self.current_skill_index
+        if not 0 <= i < len(self._max_depth):
+            return
+        self._max_depth[i] = 1 if self.depth == 1 else max(self._max_depth[i], self.depth)
+
+    @property
+    def descent_depths(self) -> list[int]:
+        """Per-skill column heights — for persistence/restore of the skyline."""
+        return list(self._max_depth)
+
+    @property
+    def current_descent_depth(self) -> int:
+        """Recorded column height for the active skill (persisted per save)."""
+        i = self.current_skill_index
+        return self._max_depth[i] if 0 <= i < len(self._max_depth) else 0
+
+    def progress_view(self) -> list[SkillColumn]:
+        """The skyline: one column per skill, derived from the live stack and
+        each skill's recorded max depth.
+
+        - Skills before the current one are complete → an all-green column.
+        - The current skill renders its live descent: the first `depth` boxes
+          come from the stack (wrong where a wrong answer is recorded, else the
+          pending current box), and the remaining `max_depth − depth` boxes are
+          resolved greens sitting below.
+        - Later skills are a single pending box.
+        """
+        wrong = self._stack.wrong_flags()
+        depth = self._stack.depth
+        columns: list[SkillColumn] = []
+
+        for i, _name in enumerate(self.skills):
+            label = f"Q{i + 1}"
+            if i < self.current_skill_index:
+                height = max(self._max_depth[i], 1)
+                columns.append(SkillColumn(label, [BoxState.CORRECT] * height))
+            elif i == self.current_skill_index:
+                if depth > 0:
+                    height = max(self._max_depth[i], depth)
+                    boxes = [
+                        BoxState.WRONG if wrong[level] else BoxState.PENDING
+                        for level in range(depth)
+                    ]
+                    boxes += [BoxState.CORRECT] * (height - depth)
+                    columns.append(SkillColumn(label, boxes, active=depth - 1))
+                elif self._max_depth[i] > 0:
+                    # Just completed, awaiting advance — show the resolved column.
+                    columns.append(SkillColumn(label, [BoxState.CORRECT] * self._max_depth[i]))
+                else:
+                    # Fresh skill, question still generating.
+                    columns.append(SkillColumn(label, [BoxState.PENDING]))
+            else:
+                columns.append(SkillColumn(label, [BoxState.PENDING]))
+
+        return columns
 
     # --- Queries -----------------------------------------------------------
 

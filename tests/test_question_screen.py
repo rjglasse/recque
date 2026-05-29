@@ -10,8 +10,14 @@ import pytest
 from textual.app import App
 from textual.widgets import Button
 
+from recque_tui.application import SessionService
+from recque_tui.core.learning_stack import LearningStack
+from recque_tui.core.models import Question
 from recque_tui.core.question_engine import QuestionEngine
+from recque_tui.core.session import BoxState
 from recque_tui.ui.screens.question_screen import QuestionScreen
+
+C, W, P = BoxState.CORRECT, BoxState.WRONG, BoxState.PENDING
 
 
 @pytest.fixture
@@ -157,3 +163,43 @@ async def test_needs_simpler_regenerates_with_prefetch(isolated_env, monkeypatch
         )
         # The regenerated question arrived through _question_ready WITH prefetch.
         assert screen.session.stack.current_entry().prefetched != {}
+
+
+@pytest.mark.asyncio
+async def test_resume_restores_progress_skyline(isolated_env):
+    """End-to-end resume (the session-detachment soft spot): a paused session
+    with a completed skill and a mid-descent skill restores its full skyline."""
+    skills = ["s1", "s2", "s3"]
+    with SessionService() as svc:
+        sess = svc.create_session("Python", skills)
+        # s1 completed at height 2 (empty stack -> completed).
+        svc.save_progress(sess, 0, LearningStack(), skills, descent_depth=2)
+        # s2 mid-climb-back: live stack depth 1 (wrong main), column reached 2.
+        stack = LearningStack()
+        stack.push(Question(question_text="q2?", correct_answer="y",
+                            incorrect_answers=["a", "b", "c"]))
+        stack.mark_incorrect("a")
+        svc.save_progress(sess, 1, stack, skills, descent_depth=2)
+        sess_id = sess.id
+
+    class _ResumeHost(App):
+        def on_mount(self) -> None:
+            with SessionService() as s:
+                target = next(r["session"] for r in s.get_resumable_sessions()
+                              if r["id"] == sess_id)
+            self.push_screen(QuestionScreen(resume_session=target))
+
+    async with _ResumeHost().run_test() as pilot:
+        await _settle(
+            pilot,
+            lambda: isinstance(pilot.app.screen, QuestionScreen)
+            and pilot.app.screen.session is not None,
+            "resumed session",
+        )
+        session = pilot.app.screen.session
+        assert session.current_skill_index == 1
+        cols = session.progress_view()
+        assert cols[0].boxes == [C, C]          # s1: restored 2-high green column
+        assert cols[1].boxes == [W, C]          # s2: wrong main + restored green tail
+        assert cols[1].active == 0
+        assert cols[2].boxes == [P]             # s3: untouched

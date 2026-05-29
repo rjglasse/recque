@@ -157,6 +157,11 @@ class SessionProgress(Base):
     stack_state_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of question IDs
     skill_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # Max stack depth ever reached for this skill — the height of its progress
+    # column in the recursive-descent skyline. See Session.progress_view.
+    descent_depth: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
     # Relationships
     session: Mapped["LearningSession"] = relationship(back_populates="progress")
@@ -294,6 +299,27 @@ def init_database():
     """Initialize the database schema."""
     engine = get_engine()
     Base.metadata.create_all(engine)
+    _run_lightweight_migrations(engine)
+
+
+def _run_lightweight_migrations(engine) -> None:
+    """Add columns that `create_all` won't apply to a pre-existing table.
+
+    SQLite's `create_all` is create-if-absent only; it never alters an existing
+    table. For additive, nullable/defaulted columns we add them in place so old
+    databases keep working without a migration framework.
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if not inspector.has_table("session_progress"):
+        return
+    columns = {col["name"] for col in inspector.get_columns("session_progress")}
+    if "descent_depth" not in columns:
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE session_progress ADD COLUMN descent_depth INTEGER NOT NULL DEFAULT 0")
+            )
 
 
 def get_or_create_default_user(session) -> User:
