@@ -1,6 +1,6 @@
-# AGENTS.md
+# CLAUDE.md
 
-Guidance for AI assistants working in this repo. Canonical agent-guidance file — `CLAUDE.md` is kept in sync with this one (the project-specific sections are identical; the auto-managed Beads Integration block at the bottom is managed by `bd init`).
+Guidance for Claude Code (and other AI assistants) working in this repo. Kept in sync with `AGENTS.md` (which is the canonical agent-guidance file in this repo). When updating one, update the other — the project-specific sections must match; the auto-managed Beads Integration block at the bottom is maintained by `bd init`.
 
 ## What this project is
 
