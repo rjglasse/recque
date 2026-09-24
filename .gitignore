@@ -38,8 +38,8 @@ uv.lock
 .DS_Store
 Thumbs.db
 
-# Gas Town polecat runtime (injected by gt, not project files)
-CLAUDE.md
+# agent runtime state (locks, session ids, handoffs)
+.runtime/
 
 # Beads / Dolt files (added by bd init)
 .dolt/
